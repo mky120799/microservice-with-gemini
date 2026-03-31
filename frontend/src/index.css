@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background-app: #0a0a0a;
+  --color-foreground-app: #ededed;
+  --color-primary-app: #3b82f6;
+  --color-secondary-app: #1f2937;
+  --font-sans: 'Outfit', sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#0a0a0a] text-[#ededed] font-sans antialiased;
+  }
+}
+
+/* Custom Component Utilities */
+@layer utilities {
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.8)];
+  }
+  
+  .glass-hover {
+    @apply transition-all duration-300 hover:bg-white/[0.06] hover:border-white/[0.15] hover:-translate-y-0.5 hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.9)];
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-tr from-white to-gray-400 bg-clip-text text-transparent;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-tr from-blue-600 to-violet-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300;
+  }
+}
+
+/* Scrollbar Styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+}
+
+/* Mesh Background Layer */
+.mesh-bg {
+  @apply fixed inset-0 z-0 pointer-events-none;
+  background: radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
+              radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+              radial-gradient(circle at 50% 50%, #0a0a0a 0%, #0a0a0a 100%);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

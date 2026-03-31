@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: zenith_user
+      POSTGRES_PASSWORD: zenith_password
+      POSTGRES_DB: zenith_bank
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongodb:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  influxdb:
+    image: influxdb:2
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: zenith
+      DOCKER_INFLUXDB_INIT_PASSWORD: zenithpassword
+      DOCKER_INFLUXDB_INIT_ORG: zenith_org
+      DOCKER_INFLUXDB_INIT_BUCKET: analytics
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: zenith_token
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: services/identity/Dockerfile
+    environment:
+      - JWT_KEY=asdf
+      - DB_HOST=postgres
+    depends_on:
+      - postgres
+
+  ledger-service:
+    build:
+      context: .
+      dockerfile: services/ledger/Dockerfile
+    environment:
+      - DB_HOST=postgres
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - postgres
+
+  transfer-service:
+    build:
+      context: .
+      dockerfile: services/transfer/Dockerfile
+    environment:
+      - REDIS_HOST=redis
+      - LEDGER_SERVICE_URL=http://ledger-service:3002
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - redis
+      - ledger-service
+      - rabbitmq
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification/Dockerfile
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - mongodb
+      - rabbitmq
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: services/analytics/Dockerfile
+    environment:
+      - INFLUX_URL=http://influxdb:8086
+      - INFLUX_TOKEN=zenith_token
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - influxdb
+      - rabbitmq
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment/Dockerfile
+    environment:
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+      - DB_HOST=postgres
+      - DB_USER=zenith_user
+      - DB_PASSWORD=zenith_password
+      - DB_NAME=zenith_bank
+      - LEDGER_SERVICE_URL=http://ledger-service:3002
+    depends_on:
+      - ledger-service
+      - postgres
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - IDENTITY_SERVICE_URL=http://identity-service:3000
+      - LEDGER_SERVICE_URL=http://ledger-service:3002
+      - TRANSFER_SERVICE_URL=http://transfer-service:3003
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3004
+      - ANALYTICS_SERVICE_URL=http://analytics-service:3005
+      - PAYMENT_SERVICE_URL=http://payment-service:3006
+    depends_on:
+      - identity-service
+      - ledger-service
+      - transfer-service
+      - notification-service
+      - analytics-service
+      - payment-service
+
+volumes:
+  postgres_data:
+  mongo_data:

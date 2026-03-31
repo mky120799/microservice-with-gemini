@@ -1,0 +1,24 @@
+{
+  "name": "zenith-banking",
+  "version": "1.0.0",
+  "description": "Production-level FinTech Microservice Architecture",
+  "private": true,
+  "workspaces": [
+    "services/*",
+    "libs/*",
+    "frontend"
+  ],
+  "scripts": {
+    "setup": "npm install && npm install --ws",
+    "test": "npm test -ws",
+    "build": "npm run build -ws",
+    "dev": "npm run dev -ws"
+  },
+  "keywords": [
+    "microservices",
+    "fintech",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "ISC"
+}
