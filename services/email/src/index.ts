@@ -101,18 +101,84 @@ async function start() {
       console.log('📬 Email Service: Processing for transaction:', transaction.id || 'N/A');
 
       try {
-        const response = await axios.get(`${IDENTITY_SERVICE_URL}/api/users/${transaction.toAccountId}`);
-        const user = response.data;
+        // Notify Receiver (toAccountId)
+        const toResponse = await axios.get(`${IDENTITY_SERVICE_URL}/api/users/${transaction.toAccountId}`);
+        const toUser = toResponse.data;
         
-        if (user && user.email) {
-          const subject = 'Transaction Alert: Payment Received';
-          const text = `Hello,\n\nYou have received a payment of ${transaction.amount} from account ${transaction.fromAccountId}.\n\nTransaction ID: ${transaction.id}\nDate: ${new Date().toLocaleString()}\n\nThank you for choosing Zenith Banking.`;
+        if (toUser && toUser.email) {
+          const subject = transaction.type === 'CREDIT' ? 'Top Up Successful' : 'Transaction Alert: Payment Received';
+          const text = transaction.type === 'CREDIT' 
+            ? `Hello,\n\nYour account has been successfully topped up with $${transaction.amount}.\n\nTransaction ID: ${transaction.id}\nDate: ${new Date().toLocaleString()}\n\nThank you for choosing Zenith Banking.`
+            : `Hello,\n\nYou have received a payment of $${transaction.amount} from User #${transaction.fromAccountId}.\n\nTransaction ID: ${transaction.id}\nDate: ${new Date().toLocaleString()}\n\nThank you for choosing Zenith Banking.`;
           
-          await sendEmail(user.email, subject, text);
-          console.log('✅ Email Service: Notification successful for:', user.email);
+          await sendEmail(toUser.email, subject, text);
+          console.log('✅ Email Service: Receiver notification successful for:', toUser.email);
         }
+
+        // Notify Sender (fromAccountId) if it's a transfer
+        if (transaction.fromAccountId && transaction.fromAccountId > 0) {
+          try {
+            const fromResponse = await axios.get(`${IDENTITY_SERVICE_URL}/api/users/${transaction.fromAccountId}`);
+            const fromUser = fromResponse.data;
+
+            if (fromUser && fromUser.email) {
+               const subject = 'Transfer Successful';
+               const text = `Hello,\n\nYou have successfully sent $${transaction.amount} to User #${transaction.toAccountId}.\n\nTransaction ID: ${transaction.id}\nDate: ${new Date().toLocaleString()}\n\nThank you for choosing Zenith Banking.`;
+               
+               await sendEmail(fromUser.email, subject, text);
+               console.log('✅ Email Service: Sender notification successful for:', fromUser.email);
+            }
+          } catch (senderErr) {
+            console.error('❌ Email Service: Failed to fetch sender for notification');
+          }
+        }
+
       } catch (err) {
         console.error('❌ Email Service: Failed to process notification:', (err as Error).message);
+      }
+
+      channel.ack(msg);
+    }
+  });
+
+  // Ticketing Service Consumer
+  const ticketingExchange = 'ticketing-exchange';
+  const ticketingQueue = 'email.ticketing';
+  await channel.assertExchange(ticketingExchange, 'fanout', { durable: true });
+  await channel.assertQueue(ticketingQueue, { durable: true });
+  await channel.bindQueue(ticketingQueue, ticketingExchange, '');
+
+  console.log('🚀 Email Service: Waiting for ticketing messages in %s bound to %s', ticketingQueue, ticketingExchange);
+
+  channel.consume(ticketingQueue, async (msg) => {
+    if (msg !== null) {
+      const payload = JSON.parse(msg.content.toString());
+      const { pattern, data } = payload;
+      console.log(`📬 Email Service: Processing ticketing event ${pattern}`);
+
+      try {
+        const response = await axios.get(`${IDENTITY_SERVICE_URL}/api/users/${data.userId}`);
+        const user = response.data;
+
+        if (user && user.email) {
+          let subject = '';
+          let text = '';
+
+          if (pattern === 'ticket-created') {
+            subject = `New Ticket Created: #${data.title}`;
+            text = `Hello,\n\nYour support ticket has been created successfully.\n\nTicket ID: ${data.id}\nTitle: ${data.title}\nPriority: ${data.priority}\nStatus: ${data.status}\n\nWe will get back to you soon.`;
+          } else if (pattern === 'ticket-status-updated') {
+            subject = `Ticket Update: #${data.title}`;
+            text = `Hello,\n\nYour ticket status has been updated.\n\nTicket ID: ${data.id}\nTitle: ${data.title}\nNew Status: ${data.status}\n\nThank you for your patience.`;
+          }
+
+          if (subject && text) {
+            await sendEmail(user.email, subject, text);
+            console.log('✅ Email Service: Ticketing notification sent to:', user.email);
+          }
+        }
+      } catch (err) {
+        console.error('❌ Email Service: Failed to process ticketing email:', (err as Error).message);
       }
 
       channel.ack(msg);

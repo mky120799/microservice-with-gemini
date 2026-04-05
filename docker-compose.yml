@@ -133,6 +133,24 @@ services:
       - rabbitmq
       - identity-service
 
+  ticketing-service:
+    build:
+      context: .
+      dockerfile: services/ticketing/Dockerfile
+    ports:
+      - "3007:3007"
+    volumes:
+      - ticketing_uploads:/app/services/ticketing/uploads
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=zenith_user
+      - DB_PASSWORD=zenith_password
+      - DB_NAME=zenith_bank
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - postgres
+      - rabbitmq
+
   api-gateway:
     build:
       context: .
@@ -146,6 +164,7 @@ services:
       - NOTIFICATION_SERVICE_URL=http://notification-service:3004
       - ANALYTICS_SERVICE_URL=http://analytics-service:3005
       - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - TICKETING_SERVICE_URL=http://ticketing-service:3007
     depends_on:
       - identity-service
       - ledger-service
@@ -153,7 +172,9 @@ services:
       - notification-service
       - analytics-service
       - payment-service
+      - ticketing-service
 
 volumes:
   postgres_data:
   mongo_data:
+  ticketing_uploads:

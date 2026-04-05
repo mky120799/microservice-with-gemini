@@ -13,6 +13,7 @@ import { Transactions } from './components/Transactions';
 import { Security } from './components/Security';
 import { Profile } from './components/Profile';
 import { Settings } from './components/Settings';
+import { Ticketing } from './components/Ticketing';
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
@@ -76,6 +77,8 @@ const App: React.FC = () => {
         return <Profile />;
       case 'settings':
         return <Settings />;
+      case 'support':
+        return <Ticketing />;
       default:
         return <Dashboard />;
     }

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, LayoutDashboard, Send, Bell, PieChart, Shield, History, User, Settings } from 'lucide-react';
+import { LogOut, LayoutDashboard, Send, Bell, PieChart, Shield, History, User, Settings, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../hooks/useSocket';
 
@@ -79,6 +79,12 @@ export const Layout: React.FC<{
             label="Security" 
             active={currentView === 'security'} 
             onClick={() => setView('security')}
+          />
+          <NavItem 
+            icon={<MessageSquare size={20} />} 
+            label="Support" 
+            active={currentView === 'support'} 
+            onClick={() => setView('support')}
           />
         </nav>
 
@@ -236,6 +242,11 @@ export const Layout: React.FC<{
             icon={<Shield size={20} />} 
             active={currentView === 'security'} 
             onClick={() => setView('security')}
+          />
+          <MobileNavItem 
+            icon={<MessageSquare size={20} />} 
+            active={currentView === 'support'} 
+            onClick={() => setView('support')}
           />
       </nav>
     </div>

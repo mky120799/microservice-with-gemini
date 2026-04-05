@@ -40,6 +40,10 @@ const services = [
     path: '/api/payments',
     target: process.env.PAYMENT_SERVICE_URL || 'http://localhost:3006',
   },
+  {
+    path: '/api/tickets',
+    target: process.env.TICKETING_SERVICE_URL || 'http://localhost:3007',
+  },
 ];
 
 services.forEach((service) => {

@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { Wallet, ArrowUpRight, ArrowDownLeft, TrendingUp, Plus } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownLeft, TrendingUp, Plus, FileText, FileSpreadsheet } from 'lucide-react';
 import { TopUp } from './TopUp';
 import { TransferModal } from './TransferModal';
 import { useSocket } from '../hooks/useSocket';
 import { Bell, History } from 'lucide-react';
+import { exportToCSV, exportToPDF } from '../utils/exportUtils';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -31,6 +32,28 @@ export const Dashboard: React.FC = () => {
       setHistory(res.data);
     } catch (err) {
       console.error('Failed to fetch history');
+    }
+  };
+
+  const handleExport = async (format: 'csv' | 'pdf') => {
+    try {
+      const res = await api.get(`/api/ledger/transactions/${user?.id}/all`);
+      const allTransactions = res.data.map((tx: any) => ({
+        ID: tx.id,
+        Date: new Date(tx.createdAt).toLocaleString(),
+        Type: tx.type === 'CREDIT' ? 'Top Up' : tx.fromAccountId === user?.id ? 'Transfer Out' : 'Transfer In',
+        Amount: `$${parseFloat(tx.amount).toFixed(2)}`,
+        'From Account ID': tx.fromAccountId,
+        'To Account ID': tx.toAccountId,
+      }));
+
+      if (format === 'csv') {
+        exportToCSV(allTransactions, `transactions_${user?.email}`);
+      } else {
+        exportToPDF(allTransactions, `transactions_${user?.email}`);
+      }
+    } catch (err) {
+      console.error('Failed to export data');
     }
   };
 
@@ -72,7 +95,7 @@ export const Dashboard: React.FC = () => {
               <span className="text-3xl md:text-4xl lg:text-5xl font-light text-gray-500">$</span>
               <h2 className="text-6xl md:text-7xl lg:text-8xl font-black tracking-tighter text-gradient leading-none">
                 {Math.floor(balance).toLocaleString()}
-                <span className="text-3xl md:text-4xl lg:text-5xl font-medium opacity-50">.{(balance % 1).toFixed(2).split('.')[1]}</span>
+                <span className="text-3xl md:text-4xl lg:text-5xl font-medium opacity-50">.{(balance % 1).toFixed(2).split('.')[1] || '00'}</span>
               </h2>
             </div>
 
@@ -163,9 +186,20 @@ export const Dashboard: React.FC = () => {
                 <p className="text-xs text-gray-500 font-medium">Real-time ledger audit</p>
               </div>
             </div>
-            <button className="text-[10px] font-black text-blue-400 uppercase tracking-widest hover:text-white transition-colors">
-              View All
-            </button>
+            <div className="flex gap-4">
+                <button 
+                  onClick={() => handleExport('csv')} 
+                  className="flex items-center gap-2 text-[10px] font-black text-green-400 uppercase tracking-widest hover:text-green-300 transition-colors"
+                >
+                  <FileSpreadsheet size={16} /> CSV
+                </button>
+                <button 
+                  onClick={() => handleExport('pdf')}
+                  className="flex items-center gap-2 text-[10px] font-black text-red-400 uppercase tracking-widest hover:text-red-300 transition-colors"
+                >
+                  <FileText size={16} /> PDF
+                </button>
+            </div>
           </div>
           
           <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[420px]">

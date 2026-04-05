@@ -25,6 +25,11 @@ const seed = async () => {
         password: 'Zenith@123',
         role: 'auditor',
       },
+      {
+        email: 'finance@zenith.com',
+        password: 'Zenith@123',
+        role: 'finance',
+      },
     ];
 
     for (const u of users) {
