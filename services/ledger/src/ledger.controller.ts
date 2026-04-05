@@ -32,4 +32,9 @@ export class LedgerController {
   async getTransactions(@Param('userId') userId: string) {
     return this.ledgerService.getTransactions(parseInt(userId));
   }
+
+  @Get('transactions/:userId/all')
+  async getAllTransactions(@Param('userId') userId: string) {
+    return this.ledgerService.getAllTransactions(parseInt(userId));
+  }
 }

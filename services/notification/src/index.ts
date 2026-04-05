@@ -1,8 +1,8 @@
+import amqp from 'amqplib';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { MongoClient } from 'mongodb';
-import amqp from 'amqplib';
 
 const app = express();
 const httpServer = createServer(app);

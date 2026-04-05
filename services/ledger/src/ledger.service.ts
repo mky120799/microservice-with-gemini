@@ -16,6 +16,23 @@ export class LedgerService {
     private rabbitMQService: RabbitMQService,
   ) {}
 
+  async createAccount(userId: number) {
+    const existing = await this.accountRepository.findOne({ where: { userId } });
+    if (existing) {
+      console.log(`Account already exists for user ${userId}`);
+      return existing;
+    }
+    
+    const account = this.accountRepository.create({
+      userId,
+      balance: 0,
+    });
+    
+    await this.accountRepository.save(account);
+    console.log(`✅ Created ledger account for user ${userId}`);
+    return account;
+  }
+
   async transfer(fromId: number, toId: number, amount: number) {
     const queryRunner = this.dataSource.createQueryRunner();
 
@@ -121,6 +138,16 @@ export class LedgerService {
       ],
       order: { createdAt: 'DESC' },
       take: 10
+    });
+  }
+
+  async getAllTransactions(userId: number) {
+    return this.transactionRepository.find({
+      where: [
+        { fromAccountId: userId },
+        { toAccountId: userId }
+      ],
+      order: { createdAt: 'DESC' }
     });
   }
 }

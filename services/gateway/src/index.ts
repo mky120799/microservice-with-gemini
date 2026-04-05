@@ -17,7 +17,7 @@ app.use((req, res, next) => {
 const services = [
   {
     path: '/api/users',
-    target: process.env.IDENTITY_SERVICE_URL || 'http://localhost:3001',
+    target: process.env.IDENTITY_SERVICE_URL || 'http://localhost:3000',
   },
   {
     path: '/api/ledger',

@@ -1,5 +1,6 @@
 import { AppDataSource } from './database';
 import { app } from './app';
+import { RabbitMQService } from './rabbitmq.service';
 
 const start = async () => {
   if (!process.env.JWT_KEY) {
@@ -12,6 +13,7 @@ const start = async () => {
   try {
     await AppDataSource.initialize();
     console.log('Connected to PostgreSQL');
+    RabbitMQService.init().catch(err => console.error('RabbitMQ Init Error:', err));
   } catch (err) {
     console.error(err);
   }

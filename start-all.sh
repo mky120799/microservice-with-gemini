@@ -6,7 +6,7 @@ echo "🚀 Starting Zenith Banking Microservices..."
 
 # 1. Start Docker containers (Databases and Backend Services)
 echo "📦 Starting Backend Services (Docker)..."
-docker-compose up -d
+docker-compose up --build -d
 
 if [ $? -ne 0 ]; then
     echo "❌ Error starting Docker services. Please make sure Docker Desktop is running."

@@ -3,7 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { Shield, Mail, Lock, ArrowRight } from 'lucide-react';
 
-export const Login: React.FC = () => {
+interface LoginProps {
+  onForgotPassword: () => void;
+}
+
+export const Login: React.FC<LoginProps> = ({ onForgotPassword }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login } = useAuth();
@@ -63,6 +67,13 @@ export const Login: React.FC = () => {
                 required
               />
             </div>
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="text-xs text-blue-500 hover:text-blue-400 mt-2 ml-1"
+            >
+              Forgot your secret key?
+            </button>
           </div>
 
           <button
