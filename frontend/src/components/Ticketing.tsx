@@ -84,7 +84,7 @@ export const Ticketing: React.FC = () => {
       await api.post('/api/tickets', formData, {
         headers: {
           'x-user-id': user?.id,
-          'Content-Type': 'multipart/form-data'
+          // Removed manual Content-Type as it blocks Axios boundary generation
         }
       });
       setIsCreateOpen(false);
@@ -371,7 +371,7 @@ export const Ticketing: React.FC = () => {
                initial={{ scale: 0.9, opacity: 0, y: 20 }}
                animate={{ scale: 1, opacity: 1, y: 0 }}
                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl glass p-10 rounded-[2.5rem] z-[101]"
+               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-xl glass p-6 md:p-10 rounded-[2.5rem] z-[101] max-h-[90vh] overflow-y-auto custom-scrollbar"
             >
                <div className="flex justify-between items-center mb-10">
                   <h2 className="text-3xl font-black">Report an Issue</h2>
