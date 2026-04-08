@@ -25,6 +25,11 @@ export class TicketingController {
     @UploadedFile() file: any,
     @Req() req: Request
   ) {
+    console.log('--- Incoming Ticket Submission ---');
+    console.log('User ID Header:', req.headers['x-user-id']);
+    console.log('Body:', body);
+    console.log('File:', file);
+
     const userId = parseInt(req.headers['x-user-id'] as string || '0');
     const { title, description, priority, category } = body;
     
