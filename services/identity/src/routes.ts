@@ -91,6 +91,58 @@ router.get(
   }
 );
 
+// ── Auth0 Strategy ──────────────────────────────────────────────────────────
+passport.use(
+  new Auth0Strategy(
+    {
+      domain: process.env.AUTH0_DOMAIN || 'YOUR_AUTH0_DOMAIN.auth0.com',
+      clientID: process.env.AUTH0_CLIENT_ID || 'placeholder_auth0_client_id',
+      clientSecret: process.env.AUTH0_CLIENT_SECRET || 'placeholder_auth0_client_secret',
+      callbackURL: '/api/users/auth/auth0/callback',
+    },
+    async (accessToken: string, refreshToken: string, extraParams: any, profile: any, done: any) => {
+      const email = profile.emails?.[0]?.value;
+      if (!email) return done(new Error('No email found in Auth0 profile'));
+
+      let user = await userRepository.findOne({ where: { email } });
+      if (!user) {
+        user = userRepository.create({
+          email,
+          googleId: profile.id,
+          password: crypto.randomBytes(20).toString('hex'),
+        });
+        await userRepository.save(user);
+        await RabbitMQService.publish('user-created', {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+        });
+      }
+      return done(null, user);
+    }
+  )
+);
+
+// Auth0 Routes
+router.get(
+  '/api/users/auth/auth0',
+  passport.authenticate('auth0', { scope: 'openid email profile' })
+);
+
+router.get(
+  '/api/users/auth/auth0/callback',
+  passport.authenticate('auth0', { failureRedirect: '/login' }),
+  (req, res) => {
+    const user = req.user as User;
+    const userJwt = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_KEY!
+    );
+    req.session = { jwt: userJwt };
+    res.redirect('http://localhost:5173/dashboard');
+  }
+);
+
 router.post(
   '/api/users/signup',
   [
