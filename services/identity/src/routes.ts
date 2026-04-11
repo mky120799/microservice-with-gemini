@@ -7,9 +7,89 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { AppDataSource } from './database';
 import { RabbitMQService } from './rabbitmq.service';
+import { authenticator } from 'otplib';
+import QRCode from 'qrcode';
+import { requireAuth } from 'common';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import Auth0Strategy from 'passport-auth0';
 
 const router = express.Router();
 const userRepository = AppDataSource.getRepository(User);
+
+// Passport Configuration
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID || 'placeholder_client_id',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'placeholder_client_secret',
+      callbackURL: '/api/users/auth/google/callback',
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      const { id, emails } = profile;
+      const email = emails?.[0].value;
+
+      if (!email) return done(new Error('No email found in google profile'));
+
+      let user = await userRepository.findOne({ 
+        where: [{ googleId: id }, { email }] 
+      });
+
+      if (!user) {
+        user = userRepository.create({ 
+          email, 
+          googleId: id, 
+          password: crypto.randomBytes(20).toString('hex') // Placeholder password
+        });
+        await userRepository.save(user);
+        
+        await RabbitMQService.publish('user-created', {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+        });
+      } else if (!user.googleId) {
+        user.googleId = id;
+        await userRepository.save(user);
+      }
+
+      return done(null, user);
+    }
+  )
+);
+
+passport.serializeUser((user: any, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id: number, done) => {
+  try {
+    const user = await userRepository.findOne({ where: { id } });
+    done(null, user);
+  } catch (err) {
+    done(err);
+  }
+});
+
+// OAuth Routes
+router.get(
+  '/api/users/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+router.get(
+  '/api/users/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  (req, res) => {
+    const user = req.user as User;
+    const userJwt = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_KEY!
+    );
+    req.session = { jwt: userJwt };
+    res.redirect('http://localhost:5173/dashboard');
+  }
+);
 
 router.post(
   '/api/users/signup',
@@ -66,7 +146,7 @@ router.post(
     body('password').trim().notEmpty().withMessage('You must supply a password'),
   ],
   async (req: Request, res: Response) => {
-    const { email, password } = req.body;
+    const { email, password, token } = req.body;
 
     const existingUser = await userRepository.findOne({ where: { email } });
     if (!existingUser) {
@@ -76,6 +156,21 @@ router.post(
     const passwordsMatch = await bcrypt.compare(password, existingUser.password);
     if (!passwordsMatch) {
       throw new BadRequestError('Invalid credentials');
+    }
+
+    // 2FA Check
+    if (existingUser.isTwoFactorEnabled) {
+      if (!token) {
+        return res.status(200).send({ 
+          twoFactorRequired: true, 
+          message: '2FA Token Required' 
+        });
+      }
+
+      const isValid = authenticator.check(token, existingUser.twoFactorSecret);
+      if (!isValid) {
+        throw new BadRequestError('Invalid 2FA token');
+      }
     }
 
     // Generate JWT
@@ -96,6 +191,34 @@ router.post(
     res.status(200).send(existingUser);
   }
 );
+
+router.post('/api/users/2fa/setup', requireAuth, async (req: Request, res: Response) => {
+  const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
+  if (!user) throw new BadRequestError('User not found');
+
+  const secret = authenticator.generateSecret();
+  user.twoFactorSecret = secret;
+  await userRepository.save(user);
+
+  const otpauth = authenticator.keyuri(user.email, 'Zenith Bank', secret);
+  const qrCodeDataURL = await QRCode.toDataURL(otpauth);
+
+  res.send({ qrCodeDataURL, secret });
+});
+
+router.post('/api/users/2fa/verify', requireAuth, async (req: Request, res: Response) => {
+  const { token } = req.body;
+  const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
+  if (!user || !user.twoFactorSecret) throw new BadRequestError('2FA not set up');
+
+  const isValid = authenticator.check(token, user.twoFactorSecret);
+  if (!isValid) throw new BadRequestError('Invalid token');
+
+  user.isTwoFactorEnabled = true;
+  await userRepository.save(user);
+
+  res.send({ success: true, message: '2FA enabled successfully' });
+});
 
 router.post('/api/users/signout', (req: Request, res: Response) => {
   req.session = null;

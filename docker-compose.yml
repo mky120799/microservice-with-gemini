@@ -165,6 +165,7 @@ services:
       - ANALYTICS_SERVICE_URL=http://analytics-service:3005
       - PAYMENT_SERVICE_URL=http://payment-service:3006
       - TICKETING_SERVICE_URL=http://ticketing-service:3007
+      - JWT_KEY=asdf
     depends_on:
       - identity-service
       - ledger-service

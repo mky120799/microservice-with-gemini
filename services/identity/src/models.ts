@@ -15,6 +15,15 @@ export class User {
   role!: string;
 
   @Column({ nullable: true })
+  twoFactorSecret!: string;
+
+  @Column({ default: false })
+  isTwoFactorEnabled!: boolean;
+
+  @Column({ nullable: true })
+  googleId!: string;
+
+  @Column({ nullable: true })
   resetToken!: string;
 
   @Column({ type: 'timestamp', nullable: true })

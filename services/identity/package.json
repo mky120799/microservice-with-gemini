@@ -20,6 +20,10 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
+    "@types/passport": "^1.0.17",
+    "@types/passport-auth0": "^1.0.9",
+    "@types/passport-google-oauth20": "^2.0.17",
+    "@types/qrcode": "^1.5.6",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   },
@@ -33,7 +37,12 @@
     "express-async-errors": "^3.1.1",
     "express-validator": "^7.3.0",
     "jsonwebtoken": "^9.0.2",
+    "otplib": "^13.4.0",
+    "passport": "^0.7.0",
+    "passport-auth0": "^1.4.5",
+    "passport-google-oauth20": "^2.0.0",
     "pg": "^8.13.3",
+    "qrcode": "^1.5.4",
     "typeorm": "^0.3.20"
   }
 }

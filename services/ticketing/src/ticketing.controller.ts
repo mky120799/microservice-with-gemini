@@ -4,6 +4,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { TicketingService } from './ticketing.service';
 import { TicketStatus, TicketPriority } from './entities/ticket.entity';
+import { NotAuthorizedError, ForbiddenError } from 'common';
 import type { Request } from 'express';
 
 @Controller('api/tickets')
@@ -25,16 +26,15 @@ export class TicketingController {
     @UploadedFile() file: any,
     @Req() req: Request
   ) {
-    console.log('--- Incoming Ticket Submission ---');
-    console.log('User ID Header:', req.headers['x-user-id']);
-    console.log('Body:', body);
-    console.log('File:', file);
+    if (!req.currentUser) {
+      throw new NotAuthorizedError();
+    }
 
-    const userId = parseInt(req.headers['x-user-id'] as string || '0');
+    console.log(`--- Ticket Submission by ${req.currentUser.email} ---`);
     const { title, description, priority, category } = body;
     
     return this.ticketingService.createTicket(
-      userId,
+      req.currentUser.id,
       title,
       description,
       priority as TicketPriority,
@@ -45,30 +45,60 @@ export class TicketingController {
 
   @Get()
   async getTickets(@Req() req: Request) {
-    const userId = parseInt(req.headers['x-user-id'] as string || '0');
-    const role = req.headers['x-user-role'] as string;
-    return this.ticketingService.getTickets(userId, role);
+    if (!req.currentUser) {
+      throw new NotAuthorizedError();
+    }
+    return this.ticketingService.getTickets(req.currentUser.id, req.currentUser.role);
   }
 
   @Get('analytics')
-  async getAnalytics() {
+  async getAnalytics(@Req() req: Request) {
+    if (!req.currentUser || (req.currentUser.role !== 'admin' && req.currentUser.role !== 'auditor')) {
+      throw new ForbiddenError();
+    }
     return this.ticketingService.getAnalytics();
   }
 
   @Get(':id')
-  async getTicketById(@Param('id') id: string) {
-    return this.ticketingService.getTicketById(parseInt(id));
+  async getTicketById(@Param('id') id: string, @Req() req: Request) {
+    if (!req.currentUser) {
+      throw new NotAuthorizedError();
+    }
+    const ticket = await this.ticketingService.getTicketById(parseInt(id));
+    
+    // RBAC: Customers can only see their own tickets
+    if (req.currentUser.role === 'user' && ticket.userId !== req.currentUser.id) {
+      throw new ForbiddenError();
+    }
+
+    return ticket;
   }
 
   @Put(':id/status')
   async updateStatus(@Param('id') id: string, @Body('status') status: TicketStatus, @Req() req: Request) {
-    const userId = parseInt(req.headers['x-user-id'] as string || '0');
-    return this.ticketingService.updateTicketStatus(parseInt(id), userId, status);
+    if (!req.currentUser) {
+      throw new NotAuthorizedError();
+    }
+
+    // RBAC: Only admin or employee can change status
+    if (req.currentUser.role === 'user') {
+      throw new ForbiddenError();
+    }
+
+    return this.ticketingService.updateTicketStatus(parseInt(id), req.currentUser.id, status);
   }
 
   @Put(':id/priority')
   async updatePriority(@Param('id') id: string, @Body('priority') priority: TicketPriority, @Req() req: Request) {
-    const userId = parseInt(req.headers['x-user-id'] as string || '0');
-    return this.ticketingService.updateTicketPriority(parseInt(id), userId, priority);
+    if (!req.currentUser) {
+      throw new NotAuthorizedError();
+    }
+
+    // RBAC: Only admin or employee can change priority
+    if (req.currentUser.role === 'user') {
+      throw new ForbiddenError();
+    }
+
+    return this.ticketingService.updateTicketPriority(parseInt(id), req.currentUser.id, priority);
   }
 }

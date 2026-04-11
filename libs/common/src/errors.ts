@@ -41,3 +41,14 @@ export class NotFoundError extends CustomError {
     return [{ message: 'Not Found' }];
   }
 }
+
+export class ForbiddenError extends CustomError {
+  statusCode = 403;
+  constructor() {
+    super('Forbidden: You do not have permission to perform this action');
+    Object.setPrototypeOf(this, ForbiddenError.prototype);
+  }
+  serializeErrors() {
+    return [{ message: 'Forbidden: You do not have permission to perform this action' }];
+  }
+}

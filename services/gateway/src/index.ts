@@ -2,11 +2,23 @@ import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import cors from 'cors';
 
+import cookieSession from 'cookie-session';
+import jwt from 'jsonwebtoken';
+
 const app = express();
+app.set('trust proxy', true);
+
 app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true,
 }));
+
+app.use(
+  cookieSession({
+    signed: false,
+    secure: false, // In production, this should be true with HTTPS
+  })
+);
 
 // Request Logger
 app.use((req, res, next) => {
@@ -53,6 +65,23 @@ services.forEach((service) => {
       changeOrigin: true,
       pathFilter: service.path,
       ws: (service as any).ws || false,
+      onProxyReq: (proxyReq, req: any) => {
+        if (req.session?.jwt) {
+          try {
+            const payload = jwt.verify(
+              req.session.jwt,
+              process.env.JWT_KEY || 'asdf'
+            ) as any;
+            
+            proxyReq.setHeader('x-user-id', payload.id.toString());
+            proxyReq.setHeader('x-user-role', payload.role);
+            proxyReq.setHeader('x-user-email', payload.email);
+            console.log(`[Gateway] Injected headers for user ${payload.email}`);
+          } catch (err) {
+            console.log('[Gateway] JWT verification failed');
+          }
+        }
+      },
     })
   );
 });

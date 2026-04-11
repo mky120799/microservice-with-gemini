@@ -3,6 +3,7 @@ import 'express-async-errors';
 import { json } from 'body-parser';
 import cookieSession from 'cookie-session';
 import { errorHandler, NotFoundError, currentUser } from 'common';
+import passport from 'passport';
 import { authRouter } from './routes';
 
 const app = express();
@@ -14,6 +15,9 @@ app.use(
     secure: false, // In production, this should be true with HTTPS
   })
 );
+app.use(passport.initialize());
+app.use(passport.session());
+
 app.use(currentUser);
 app.use(authRouter);
 
