@@ -142,6 +142,7 @@ export const Signup: React.FC = () => {
             <ArrowRight size={22} />
           </button>
         </form>
+        </div>
       </motion.div>
     </div>
   );
