@@ -183,37 +183,54 @@ passport.use(
       proxy: true,
     },
     async (accessToken: string, refreshToken: string, extraParams: any, profile: any, done: any) => {
-      console.log('[Identity] Auth0 Callback received for profile:', profile.id);
-      const email = profile.emails?.[0]?.value;
-      if (!email) return done(new Error('No email found in Auth0 profile'));
-
-      // Check by socialId + socialProvider or email
-      let user = await userRepository.findOne({ 
-        where: [
-          { socialId: profile.id, socialProvider: 'auth0' }, 
-          { email }
-        ] 
-      });
-
-      if (!user) {
-        user = userRepository.create({
-          email,
-          socialId: profile.id,
-          socialProvider: 'auth0',
-          password: crypto.randomBytes(20).toString('hex'),
-        });
-        await userRepository.save(user);
-        await RabbitMQService.publish('user-created', {
-          userId: user.id,
-          email: user.email,
-          role: user.role,
-        });
-      } else if (!user.socialId) {
-        user.socialId = profile.id;
-        user.socialProvider = 'auth0';
-        await userRepository.save(user);
+      console.log('[Identity] Auth0 Callback received for profile.id:', profile.id);
+      
+      // Robust email extraction (Google via Auth0 can bury email in _json)
+      const email = profile.emails?.[0]?.value || profile._json?.email;
+      
+      if (!email) {
+        console.error('[Identity] Auth0 Error: No email found in profile:', JSON.stringify(profile, null, 2));
+        return done(new Error('No email found in Auth0 profile'));
       }
-      return done(null, user);
+
+      console.log('[Identity] Auth0 Processing user for email:', email);
+
+      try {
+        // Check by socialId + socialProvider (Priority) or email (Linking)
+        let user = await userRepository.findOne({ 
+          where: [
+            { socialId: profile.id, socialProvider: 'auth0' }, 
+            { email }
+          ] 
+        });
+
+        if (!user) {
+          console.log('[Identity] Auth0: Creating new user for', email);
+          user = userRepository.create({
+            email,
+            socialId: profile.id,
+            socialProvider: 'auth0',
+            password: crypto.randomBytes(20).toString('hex'),
+          });
+          await userRepository.save(user);
+          await RabbitMQService.publish('user-created', {
+            userId: user.id,
+            email: user.email,
+            role: user.role,
+          });
+        } else if (user.socialProvider !== 'auth0' || user.socialId !== profile.id) {
+          console.log('[Identity] Auth0: Linking existing user to auth0 profile');
+          user.socialId = profile.id;
+          user.socialProvider = 'auth0';
+          await userRepository.save(user);
+        }
+
+        console.log('[Identity] Auth0 Login Successful for:', email);
+        return done(null, user);
+      } catch (err: any) {
+        console.error('[Identity] Auth0 Database Error:', err.message);
+        return done(err);
+      }
     }
   )
 );
@@ -229,11 +246,13 @@ router.get(
   passport.authenticate('auth0', { failureRedirect: '/login', session: false }),
   (req, res) => {
     const user = req.user as User;
+    console.log('[Identity] Auth0 Route Callback for:', user.email);
     const userJwt = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_KEY!
     );
     req.session = { jwt: userJwt };
+    console.log('[Identity] Auth0 Session established, redirecting to dashboard');
     res.redirect('http://localhost:5173/dashboard');
   }
 );
