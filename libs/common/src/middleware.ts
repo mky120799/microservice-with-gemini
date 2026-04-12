@@ -36,12 +36,12 @@ export const errorHandler = (
 };
 
 export const currentUser = (req: Request, res: Response, next: NextFunction) => {
-  // 1. Check for Gateway-injected headers (Priority)
   if (req.headers['x-user-id'] && req.headers['x-user-role'] && req.headers['x-user-email']) {
     req.currentUser = {
       id: parseInt(req.headers['x-user-id'] as string),
       role: req.headers['x-user-role'] as string,
       email: req.headers['x-user-email'] as string,
+      isTwoFactorEnabled: req.headers['x-user-two-factor'] === 'true',
     };
     return next();
   }

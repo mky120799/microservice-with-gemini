@@ -32,7 +32,7 @@ export const Ticketing: React.FC = () => {
   const [category, setCategory] = useState('General');
   const [attachment, setAttachment] = useState<File | null>(null);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'finance';
+  const isAdmin = user?.role === 'admin' || user?.role === 'finance' || user?.role === 'auditor';
 
   const fetchTickets = async () => {
     try {
@@ -129,15 +129,13 @@ export const Ticketing: React.FC = () => {
           </h1>
           <p className="text-gray-500 font-medium mt-1">Support & Internal Resolution System</p>
         </div>
-        {!isAdmin && (
-           <button 
-             onClick={() => setIsCreateOpen(true)}
-             className="btn-primary px-8 py-4 rounded-2xl flex items-center gap-3 font-bold tracking-tight"
-           >
-             <Plus size={20} strokeWidth={3} />
-             Report New Issue
-           </button>
-        )}
+        <button 
+          onClick={() => setIsCreateOpen(true)}
+          className="btn-primary px-8 py-4 rounded-2xl flex items-center gap-3 font-bold tracking-tight"
+        >
+          <Plus size={20} strokeWidth={3} />
+          Report New Issue
+        </button>
       </div>
 
       {/* Analytics (Admin Only) */}

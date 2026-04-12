@@ -69,7 +69,7 @@ export class TicketingService {
   }
 
   async getTickets(userId?: number, role?: string) {
-    if (role === 'admin' || role === 'finance') {
+    if (role === 'admin' || role === 'finance' || role === 'auditor') {
       return this.ticketRepository.find({ order: { createdAt: 'DESC' } });
     }
     return this.ticketRepository.find({ where: { userId }, order: { createdAt: 'DESC' } });
