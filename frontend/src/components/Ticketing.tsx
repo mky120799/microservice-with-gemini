@@ -23,6 +23,7 @@ export const Ticketing: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [ticketStatus, setTicketStatus] = useState<{ msg: string; type: 'success' | 'error' | null }>({ msg: '', type: null });
 
   // Form State
   const [title, setTitle] = useState('');
@@ -87,13 +88,19 @@ export const Ticketing: React.FC = () => {
           // Removed manual Content-Type as it blocks Axios boundary generation
         }
       });
-      setIsCreateOpen(false);
-      fetchTickets();
-      setTitle('');
-      setDescription('');
-      setAttachment(null);
-    } catch (err) {
-      console.error('Failed to create ticket');
+      setTicketStatus({ msg: '✅ Ticket submitted successfully! Redirecting...', type: 'success' });
+      setTimeout(() => {
+        setIsCreateOpen(false);
+        setTicketStatus({ msg: '', type: null });
+        fetchTickets();
+        setTitle('');
+        setDescription('');
+        setAttachment(null);
+      }, 2000);
+    } catch (err: any) {
+      console.error('Failed to create ticket', err);
+      const msg = err?.response?.data?.errors?.[0]?.message || '❌ Submission failed. Please try again.';
+      setTicketStatus({ msg, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -449,11 +456,17 @@ export const Ticketing: React.FC = () => {
                     </label>
                   </div>
 
+                  {ticketStatus.msg && (
+                    <p className={`text-xs text-center font-bold ${ticketStatus.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                      {ticketStatus.msg}
+                    </p>
+                  )}
+ 
                   <button 
-                    disabled={loading}
-                    className="btn-primary w-full py-5 rounded-2xl font-black uppercase tracking-widest mt-4 shadow-lg"
+                    disabled={loading || !!ticketStatus.msg}
+                    className="btn-primary w-full py-5 rounded-2xl font-black uppercase tracking-widest mt-4 shadow-lg disabled:opacity-50"
                   >
-                    {loading ? 'Submitting...' : 'Submit Support Ticket'}
+                    {loading ? 'Finalizing with Cloudinary...' : 'Submit Support Ticket'}
                   </button>
                </form>
             </motion.div>

@@ -12,11 +12,12 @@ const PREDEFINED_AVATARS = [
 ];
 
 export const Profile: React.FC = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, uploadAvatar } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
 
   if (!user) return null;
 
@@ -29,6 +30,21 @@ export const Profile: React.FC = () => {
       console.error('Failed to update profile', err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadLoading(true);
+    try {
+      const url = await uploadAvatar(file);
+      setAvatarUrl(url);
+    } catch (err) {
+      console.error('Avatar upload failed', err);
+    } finally {
+      setUploadLoading(false);
     }
   };
 
@@ -55,11 +71,22 @@ export const Profile: React.FC = () => {
                 )}
               </div>
             </div>
-            {isEditing && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-100 transition-opacity">
-                <Camera size={32} className="text-white/80" />
+            <label className={`absolute inset-0 flex items-center justify-center bg-black/40 rounded-full transition-opacity cursor-pointer ${uploadLoading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+              <div className="flex flex-col items-center gap-2">
+                {uploadLoading ? (
+                  <>
+                    <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="text-[10px] font-black uppercase text-white/70">Syncing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Camera size={32} className="text-white/80" />
+                    <span className="text-[10px] font-black uppercase text-white/70">Change Photo</span>
+                  </>
+                )}
               </div>
-            )}
+              <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={uploadLoading} />
+            </label>
           </div>
           
           <div className="text-center md:text-left space-y-4 flex-1">
@@ -146,6 +173,11 @@ export const Profile: React.FC = () => {
                       <Edit3 size={16} className="group-hover:rotate-12 transition-transform" />
                       Edit Profile
                     </button>
+                    <label className="flex items-center gap-2 px-6 py-3 bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 rounded-2xl transition-all text-[10px] font-black uppercase tracking-widest text-blue-400 cursor-pointer">
+                      <Camera size={16} />
+                      {uploadLoading ? 'Syncing...' : 'Upload New Photo'}
+                      <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={uploadLoading} />
+                    </label>
                   </div>
                 </motion.div>
               )}

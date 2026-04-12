@@ -15,6 +15,17 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as Auth0Strategy } from 'passport-auth0';
 import { Strategy as FacebookStrategy } from 'passport-facebook';
 import { Strategy as TwitterStrategy } from 'passport-twitter';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 const userRepository = AppDataSource.getRepository(User);
@@ -400,17 +411,28 @@ router.post(
 );
 
 router.post('/api/users/2fa/setup', requireAuth, async (req: Request, res: Response) => {
-  const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
-  if (!user) throw new BadRequestError('User not found');
+  try {
+    console.log(`[Identity] Starting 2FA setup for user: ${req.currentUser!.email}`);
+    const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
+    if (!user) {
+      console.error('[Identity] 2FA Setup: User not found in database');
+      throw new BadRequestError('User not found');
+    }
 
-  const secret = authenticator.generateSecret();
-  user.twoFactorSecret = secret;
-  await userRepository.save(user);
+    const secret = authenticator.generateSecret();
+    user.twoFactorSecret = secret;
+    await userRepository.save(user);
 
-  const otpauth = authenticator.keyuri(user.email, 'Zenith Bank', secret);
-  const qrCodeDataURL = await QRCode.toDataURL(otpauth);
+    console.log(`[Identity] Generated secret for ${user.email}, creating QR Code...`);
+    const otpauth = authenticator.keyuri(user.email, 'Zenith Bank', secret);
+    const qrCodeDataURL = await QRCode.toDataURL(otpauth);
 
-  res.send({ qrCodeDataURL, secret });
+    console.log(`[Identity] 2FA QR Code generated successfully for ${user.email}`);
+    res.send({ qrCodeDataURL, secret });
+  } catch (err: any) {
+    console.error('[Identity] 2FA Setup Error:', err.message);
+    throw new BadRequestError(`Failed to set up 2FA: ${err.message}`);
+  }
 });
 
 router.post('/api/users/2fa/verify', requireAuth, async (req: Request, res: Response) => {
@@ -483,6 +505,58 @@ router.patch(
     res.send(user);
   }
 );
+
+// Profile Avatar Upload
+router.post('/api/users/profile/avatar', requireAuth, upload.single('avatar'), async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new BadRequestError('No file uploaded');
+  }
+
+  const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
+  if (!user) {
+    throw new BadRequestError('User not found');
+  }
+
+  try {
+    // Upload to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: 'zenith/avatars' },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(req.file!.buffer);
+    });
+
+    const secureUrl = (result as any).secure_url;
+    user.avatarUrl = secureUrl;
+    await userRepository.save(user);
+
+    // Resign JWT to include new avatarUrl
+    const userJwt = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isTwoFactorEnabled: user.isTwoFactorEnabled,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+      },
+      process.env.JWT_KEY!
+    );
+
+    req.session = {
+      jwt: userJwt,
+    };
+
+    res.send({ secureUrl, user });
+  } catch (err: any) {
+    console.error('[Identity] Avatar Upload Error:', err.message);
+    throw new BadRequestError('Failed to upload avatar to Cloudinary');
+  }
+});
 
 router.get('/api/users/currentuser', (req: Request, res: Response) => {
   res.send({ currentUser: req.currentUser || null });

@@ -21,6 +21,7 @@ interface AuthContextType {
   setup2FA: () => Promise<{ qrCodeDataURL: string; secret: string }>;
   enable2FA: (token: string) => Promise<void>;
   disable2FA: () => Promise<void>;
+  uploadAvatar: (file: File) => Promise<string>;
   updateProfile: (profile: { name?: string; avatarUrl?: string }) => Promise<void>;
 }
 
@@ -113,6 +114,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await api.post('/api/users/2fa/disable');
   };
 
+  const uploadAvatar = async (file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const res = await api.post('/api/users/profile/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    const { secureUrl, user: updatedUser } = res.data;
+    setUser(updatedUser);
+    localStorage.setItem('zenith_user', JSON.stringify(updatedUser));
+    return secureUrl;
+  };
+
   const updateProfile = async (profileData: { name?: string; avatarUrl?: string }) => {
     const res = await api.patch('/api/users/profile', profileData);
     const updatedUser = res.data;
@@ -121,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, twoFactorPending, login, verify2FA, signup, logout, setup2FA, enable2FA, disable2FA, updateProfile }}>
+    <AuthContext.Provider value={{ user, loading, twoFactorPending, login, verify2FA, signup, logout, setup2FA, enable2FA, disable2FA, uploadAvatar, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

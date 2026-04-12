@@ -33,7 +33,9 @@
     "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "cloudinary": "^1.41.0",
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

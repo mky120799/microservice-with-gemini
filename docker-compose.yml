@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15
@@ -45,7 +43,9 @@ services:
   identity-service:
     build:
       context: .
-      dockerfile: services/identity/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: identity
     environment:
       - JWT_KEY=asdf
       - DB_HOST=postgres
@@ -59,6 +59,9 @@ services:
       - FACEBOOK_APP_SECRET=${FACEBOOK_APP_SECRET}
       - TWITTER_CONSUMER_KEY=${TWITTER_CONSUMER_KEY}
       - TWITTER_CONSUMER_SECRET=${TWITTER_CONSUMER_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     depends_on:
       - postgres
       - rabbitmq
@@ -66,7 +69,10 @@ services:
   ledger-service:
     build:
       context: .
-      dockerfile: services/ledger/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: ledger
+        START_COMMAND: "npm run start:dev"
     environment:
       - DB_HOST=postgres
       - RABBITMQ_URL=amqp://rabbitmq
@@ -76,7 +82,9 @@ services:
   transfer-service:
     build:
       context: .
-      dockerfile: services/transfer/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: transfer
     environment:
       - REDIS_HOST=redis
       - LEDGER_SERVICE_URL=http://ledger-service:3002
@@ -89,7 +97,9 @@ services:
   notification-service:
     build:
       context: .
-      dockerfile: services/notification/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: notification
     environment:
       - MONGO_URI=mongodb://mongodb:27017
       - RABBITMQ_URL=amqp://rabbitmq
@@ -100,7 +110,9 @@ services:
   analytics-service:
     build:
       context: .
-      dockerfile: services/analytics/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: analytics
     environment:
       - INFLUX_URL=http://influxdb:8086
       - INFLUX_TOKEN=zenith_token
@@ -112,7 +124,9 @@ services:
   payment-service:
     build:
       context: .
-      dockerfile: services/payment/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: payment
     ports:
       - "3006:3006"
     environment:
@@ -130,7 +144,9 @@ services:
   email-service:
     build:
       context: .
-      dockerfile: services/email/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: email
     environment:
       - RABBITMQ_URL=amqp://rabbitmq
       - IDENTITY_SERVICE_URL=http://identity-service:3000
@@ -145,7 +161,10 @@ services:
   ticketing-service:
     build:
       context: .
-      dockerfile: services/ticketing/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: ticketing
+        START_COMMAND: "npm run start:dev"
     ports:
       - "3007:3007"
     volumes:
@@ -156,6 +175,9 @@ services:
       - DB_PASSWORD=zenith_password
       - DB_NAME=zenith_bank
       - RABBITMQ_URL=amqp://rabbitmq
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     depends_on:
       - postgres
       - rabbitmq
@@ -163,7 +185,9 @@ services:
   api-gateway:
     build:
       context: .
-      dockerfile: services/gateway/Dockerfile
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: gateway
     ports:
       - "8000:8000"
     environment:

@@ -1,10 +1,19 @@
 #!/bin/bash
 
+# 0. Ensure Docker and other binaries are in PATH
+export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+
 # start-all.sh - Unified startup script for Zenith Banking
 
 echo "🚀 Starting Zenith Banking Microservices..."
 
-# 0. Sync Stripe Webhook Secret
+# 0.1 Check if Docker is running
+if ! docker info > /dev/null 2>&1; then
+    echo "❌ Docker is not running. Please start Docker Desktop and try again."
+    exit 1
+fi
+
+# 0.2 Sync Stripe Webhook Secret
 if command -v stripe &> /dev/null; then
     echo "🔒 Syncing Stripe local Webhook Secret..."
     # Retrieve the persistent secret for the current local login session
@@ -19,7 +28,7 @@ fi
 
 # 1. Start Docker containers (Databases and Backend Services)
 echo "📦 Starting Backend Services (Docker)..."
-docker-compose up --build -d
+docker compose up --build -d
 
 if [ $? -ne 0 ]; then
     echo "❌ Error starting Docker services. Please make sure Docker Desktop is running."

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Smartphone, Fingerprint, Eye, EyeOff, QrCode, CheckCircle2, X } from 'lucide-react';
+import { Lock, Smartphone, Fingerprint, Eye, EyeOff, QrCode, CheckCircle2, X, Copy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
@@ -31,7 +31,9 @@ export const Security: React.FC = () => {
       setSecret(data.secret);
       setTwoFAStep('qr');
     } catch (err: any) {
-      setTwoFAError('Failed to generate QR Code. Make sure you are signed in.');
+      console.error('[2FA Setup Error]', err);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to generate QR Code. Make sure you are signed in.';
+      setTwoFAError(msg);
     } finally {
       setTwoFALoading(false);
     }
@@ -220,9 +222,21 @@ export const Security: React.FC = () => {
                     <img src={qrCodeDataURL} alt="2FA QR Code" className="w-44 h-44 rounded-lg" />
                   </div>
                 </div>
-                <div className="p-3 bg-black/30 rounded-2xl border border-white/10 text-center">
-                  <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-widest font-bold">Manual Entry Key</p>
-                  <p className="font-mono text-xs text-violet-300 break-all">{secret}</p>
+                <div className="p-3 bg-black/30 rounded-2xl border border-white/10 flex items-center justify-between gap-4">
+                  <div className="overflow-hidden">
+                    <p className="text-[10px] text-gray-500 mb-1 uppercase tracking-widest font-bold">Manual Entry Key</p>
+                    <p className="font-mono text-xs text-violet-300 truncate">{secret}</p>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                        navigator.clipboard.writeText(secret);
+                        alert('Secret copied to clipboard!');
+                    }}
+                    className="p-2 hover:bg-white/10 rounded-lg text-gray-400 transition-colors"
+                  >
+                    <Copy size={16} />
+                  </button>
                 </div>
                 <button id="qr-next-btn" onClick={() => setTwoFAStep('verify')} className="w-full btn-primary py-4 rounded-2xl text-xs font-black uppercase tracking-widest">
                   Next — Verify Token
@@ -273,6 +287,12 @@ export const Security: React.FC = () => {
                   <p className="text-lg font-black text-white">2FA Enabled!</p>
                   <p className="text-xs text-gray-400 mt-1">Your account is now protected with two-factor authentication.</p>
                 </div>
+                <button 
+                  onClick={() => setTwoFAStep('idle')}
+                  className="w-full mt-4 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  Close Setup
+                </button>
               </motion.div>
             )}
           </AnimatePresence>

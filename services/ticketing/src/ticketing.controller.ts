@@ -1,26 +1,33 @@
 import { Controller, Post, Body, Get, Param, Put, UseInterceptors, UploadedFile, Req } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import { TicketingService } from './ticketing.service';
 import { TicketStatus, TicketPriority } from './entities/ticket.entity';
 import { NotAuthorizedError, ForbiddenError } from 'common';
 import type { Request } from 'express';
+
+// Cloudinary Configuration
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'zenith/tickets',
+    allowed_formats: ['jpg', 'png', 'pdf', 'docx', 'txt'],
+  } as any,
+});
 
 @Controller('api/tickets')
 export class TicketingController {
   constructor(private readonly ticketingService: TicketingService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('attachment', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, cb) => {
-        const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
-        return cb(null, `${randomName}${extname(file.originalname)}`);
-      }
-    })
-  }))
+  @UseInterceptors(FileInterceptor('attachment', { storage }))
   async createTicket(
     @Body() body: any,
     @UploadedFile() file: any,
@@ -39,7 +46,7 @@ export class TicketingController {
       description,
       priority as TicketPriority,
       category,
-      file ? `/api/tickets/attachments/${file.filename}` : undefined
+      file ? file.path : undefined
     );
   }
 
