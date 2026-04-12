@@ -47,7 +47,7 @@ export const Layout: React.FC<{
       <div className="mesh-bg" />
       
       {/* Desktop Sidebar - Hidden on Mobile */}
-      <aside className="hidden lg:flex w-72 border-r border-white/5 p-8 space-y-10 flex-col relative z-20 glass m-4 rounded-3xl h-[calc(100vh-2rem)]">
+      <aside className="hidden lg:flex w-72 border-r border-white/5 p-8 space-y-10 flex-col relative z-20 glass m-4 rounded-3xl h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar">
         <div className="flex items-center gap-4 px-2">
           <motion.div 
             whileHover={{ rotate: 180 }}
@@ -115,7 +115,7 @@ export const Layout: React.FC<{
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-semibold truncate">{user.email.split('@')[0]}</p>
-              <p className="text-xs text-gray-500 truncate lowercase">{getRoleLabel(user.role)}</p>
+              <p className="text-xs text-gray-500 truncate lowercase">{getRoleLabel(user.role)} ({user.role})</p>
             </div>
           </div>
           <button 

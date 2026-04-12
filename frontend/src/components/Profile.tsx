@@ -34,7 +34,7 @@ export const Profile: React.FC = () => {
                   {user.email.split('@')[0]}
                 </h2>
                 <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full text-[10px] font-black text-blue-400 uppercase tracking-widest">
-                  Gold Agent
+                  {user.role || 'Guest'} Agent
                 </span>
               </div>
               <div className="flex items-center justify-center md:justify-start gap-4 text-gray-500 font-bold text-sm tracking-tight capitalize">
