@@ -110,12 +110,16 @@ export const Layout: React.FC<{
 
         <div className="pt-6 border-t border-white/5 space-y-4">
           <div className="px-4 py-3 rounded-2xl bg-white/5 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-bold text-blue-400 border border-white/10">
-              {user.email[0].toUpperCase()}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-bold text-blue-400 border border-white/10 overflow-hidden">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                user.name ? user.name[0].toUpperCase() : user.email[0].toUpperCase()
+              )}
             </div>
             <div className="overflow-hidden">
-              <p className="text-sm font-semibold truncate">{user.email.split('@')[0]}</p>
-              <p className="text-xs text-gray-500 truncate lowercase">{getRoleLabel(user.role)} ({user.role})</p>
+              <p className="text-sm font-semibold truncate">{user.name || user.email.split('@')[0]}</p>
+              <p className="text-xs text-gray-500 truncate lowercase">{getRoleLabel(user.role)}</p>
             </div>
           </div>
           <button 
@@ -146,9 +150,13 @@ export const Layout: React.FC<{
                 </button>
                 <button 
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="w-10 h-10 rounded-full glass flex items-center justify-center text-[10px] font-bold text-blue-400 border border-white/10"
+                  className="w-10 h-10 rounded-full glass flex items-center justify-center text-[10px] font-bold text-blue-400 border border-white/10 overflow-hidden"
                 >
-                    {user.email[0].toUpperCase()}
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      user.name ? user.name[0].toUpperCase() : user.email[0].toUpperCase()
+                    )}
                 </button>
             </div>
             
@@ -200,9 +208,13 @@ export const Layout: React.FC<{
                 </button>
                 <button 
                   onClick={() => { setIsProfileOpen(!isProfileOpen); setIsNotificationsOpen(false); }}
-                  className="glass p-3 rounded-xl text-gray-400 hover:text-white transition-colors"
+                  className="glass w-11 h-11 rounded-xl text-gray-400 hover:text-white transition-colors overflow-hidden flex items-center justify-center"
                 >
-                  <User size={20} />
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={20} />
+                  )}
                 </button>
 
                 <AnimatePresence>

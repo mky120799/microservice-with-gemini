@@ -327,6 +327,8 @@ router.post(
         id: user.id,
         email: user.email,
         role: user.role,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
       },
       process.env.JWT_KEY!
     );
@@ -380,6 +382,8 @@ router.post(
         id: existingUser.id,
         email: existingUser.email,
         role: existingUser.role,
+        name: existingUser.name,
+        avatarUrl: existingUser.avatarUrl,
       },
       process.env.JWT_KEY!
     );
@@ -425,6 +429,46 @@ router.post('/api/users/signout', (req: Request, res: Response) => {
   req.session = null;
   res.send({});
 });
+
+router.patch(
+  '/api/users/profile',
+  requireAuth,
+  [
+    body('name').optional().isString().withMessage('Name must be a string'),
+    body('avatarUrl').optional().isURL().withMessage('Avatar URL must be a valid URL'),
+  ],
+  async (req: Request, res: Response) => {
+    const { name, avatarUrl } = req.body;
+    const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
+
+    if (!user) {
+      throw new BadRequestError('User not found');
+    }
+
+    if (name !== undefined) user.name = name;
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+
+    await userRepository.save(user);
+
+    // Resign JWT to include new fields
+    const userJwt = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+      },
+      process.env.JWT_KEY!
+    );
+
+    req.session = {
+      jwt: userJwt,
+    };
+
+    res.send(user);
+  }
+);
 
 router.get('/api/users/currentuser', (req: Request, res: Response) => {
   res.send({ currentUser: req.currentUser || null });

@@ -5,6 +5,8 @@ interface User {
   id: number;
   email: string;
   role: string;
+  name?: string;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -17,6 +19,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   setup2FA: () => Promise<{ qrCodeDataURL: string; secret: string }>;
   enable2FA: (token: string) => Promise<void>;
+  updateProfile: (profile: { name?: string; avatarUrl?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -104,8 +107,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await api.post('/api/users/2fa/verify', { token });
   };
 
+  const updateProfile = async (profileData: { name?: string; avatarUrl?: string }) => {
+    const res = await api.patch('/api/users/profile', profileData);
+    const updatedUser = res.data;
+    setUser(updatedUser);
+    localStorage.setItem('zenith_user', JSON.stringify(updatedUser));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, twoFactorPending, login, verify2FA, signup, logout, setup2FA, enable2FA }}>
+    <AuthContext.Provider value={{ user, loading, twoFactorPending, login, verify2FA, signup, logout, setup2FA, enable2FA, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
