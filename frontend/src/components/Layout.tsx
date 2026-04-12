@@ -13,6 +13,16 @@ export const Layout: React.FC<{
   const { notifications, clearNotifications } = useSocket();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const isEmployee = user?.role === 'admin' || user?.role === 'auditor' || user?.role === 'finance';
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Administrator';
+      case 'auditor': return 'Audit Officer';
+      case 'finance': return 'Finance Manager';
+      default: return 'Gold Member';
+    }
+  };
   
   const notificationRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -74,24 +84,28 @@ export const Layout: React.FC<{
             active={currentView === 'analytics'} 
             onClick={() => setView('analytics')}
           />
-          <NavItem 
-            icon={<Shield size={20} />} 
-            label="Security" 
-            active={currentView === 'security'} 
-            onClick={() => setView('security')}
-          />
-          <NavItem 
-            icon={<MessageSquare size={20} />} 
-            label="Support" 
-            active={currentView === 'support'} 
-            onClick={() => setView('support')}
-          />
-          <NavItem 
-            icon={<Activity size={20} />} 
-            label="System Status" 
-            active={currentView === 'system'} 
-            onClick={() => setView('system')}
-          />
+          {isEmployee && (
+            <>
+              <NavItem 
+                icon={<Shield size={20} />} 
+                label="Security" 
+                active={currentView === 'security'} 
+                onClick={() => setView('security')}
+              />
+              <NavItem 
+                icon={<MessageSquare size={20} />} 
+                label="Support" 
+                active={currentView === 'support'} 
+                onClick={() => setView('support')}
+              />
+              <NavItem 
+                icon={<Activity size={20} />} 
+                label="System Status" 
+                active={currentView === 'system'} 
+                onClick={() => setView('system')}
+              />
+            </>
+          )}
         </nav>
 
         <div className="pt-6 border-t border-white/5 space-y-4">
@@ -101,7 +115,7 @@ export const Layout: React.FC<{
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-semibold truncate">{user.email.split('@')[0]}</p>
-              <p className="text-xs text-gray-500 truncate lowercase">Gold Member</p>
+              <p className="text-xs text-gray-500 truncate lowercase">{getRoleLabel(user.role)}</p>
             </div>
           </div>
           <button 
@@ -148,10 +162,11 @@ export const Layout: React.FC<{
                         />
                     </div>
                 )}
-                {isProfileOpen && (
+                 {isProfileOpen && (
                     <div ref={profileRef}>
                         <ProfileDropdown 
-                        email={user.email} 
+                        user={user} 
+                        getRoleLabel={getRoleLabel}
                         onLogout={logout} 
                         onSelect={(v: string) => { setView(v); setIsProfileOpen(false); }} 
                         onClose={() => setIsProfileOpen(false)}
@@ -201,10 +216,11 @@ export const Layout: React.FC<{
                             />
                         </div>
                     )}
-                    {isProfileOpen && (
+                     {isProfileOpen && (
                         <div ref={profileRef}>
                             <ProfileDropdown 
-                            email={user.email} 
+                            user={user} 
+                            getRoleLabel={getRoleLabel}
                             onLogout={logout} 
                             onSelect={(v: string) => { setView(v); setIsProfileOpen(false); }} 
                             onClose={() => setIsProfileOpen(false)}
@@ -239,26 +255,30 @@ export const Layout: React.FC<{
             active={currentView === 'transactions'} 
             onClick={() => setView('transactions')}
           />
-          <MobileNavItem 
+           <MobileNavItem 
             icon={<PieChart size={20} />} 
             active={currentView === 'analytics'} 
             onClick={() => setView('analytics')}
           />
-          <MobileNavItem 
-            icon={<Shield size={20} />} 
-            active={currentView === 'security'} 
-            onClick={() => setView('security')}
-          />
-          <MobileNavItem 
-            icon={<MessageSquare size={20} />} 
-            active={currentView === 'support'} 
-            onClick={() => setView('support')}
-          />
-          <MobileNavItem 
-            icon={<Activity size={20} />} 
-            active={currentView === 'system'} 
-            onClick={() => setView('system')}
-          />
+          {isEmployee && (
+            <>
+              <MobileNavItem 
+                icon={<Shield size={20} />} 
+                active={currentView === 'security'} 
+                onClick={() => setView('security')}
+              />
+              <MobileNavItem 
+                icon={<MessageSquare size={20} />} 
+                active={currentView === 'support'} 
+                onClick={() => setView('support')}
+              />
+              <MobileNavItem 
+                icon={<Activity size={20} />} 
+                active={currentView === 'system'} 
+                onClick={() => setView('system')}
+              />
+            </>
+          )}
       </nav>
     </div>
   );
@@ -295,11 +315,13 @@ const NotificationDropdown = ({ notifications, onClear, onClose, desktop = false
   </motion.div>
 );
 
-const ProfileDropdown = ({ email, onLogout, onSelect, onClose, desktop = false }: any) => {
+ const ProfileDropdown = ({ user, onLogout, onSelect, onClose, getRoleLabel, desktop = false }: any) => {
     const handleSelect = (v: string) => {
         onSelect(v);
         onClose();
     };
+
+    const isEmployee = user?.role === 'admin' || user?.role === 'auditor' || user?.role === 'finance';
 
     return (
         <motion.div 
@@ -309,12 +331,12 @@ const ProfileDropdown = ({ email, onLogout, onSelect, onClose, desktop = false }
             className={`absolute right-0 mt-2 w-[240px] glass p-4 rounded-[2rem] z-50 shadow-2xl border-white/10 ${desktop ? 'top-full' : 'top-16 shadow-black/80'}`}
         >
             <div className="px-4 py-3 mb-3 border-b border-white/5">
-                <p className="text-xs font-black text-gradient truncate mb-0.5">{email}</p>
-                <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest">Standard Tier Agent</p>
+                <p className="text-xs font-black text-gradient truncate mb-0.5">{user?.email}</p>
+                <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest">{getRoleLabel(user?.role)}</p>
             </div>
             <div className="space-y-1">
                 <ProfileItem icon={<User size={16} />} label="My Profile" onClick={() => handleSelect('profile')} />
-                <ProfileItem icon={<Shield size={16} />} label="Security" onClick={() => handleSelect('security')} />
+                {isEmployee && <ProfileItem icon={<Shield size={16} />} label="Security" onClick={() => handleSelect('security')} />}
                 <ProfileItem icon={<Settings size={16} />} label="Settings" onClick={() => handleSelect('settings')} />
                 <div className="h-px bg-white/5 my-2 mx-2" />
                 <ProfileItem icon={<LogOut size={16} />} label="Deactivate" onClick={onLogout} danger />

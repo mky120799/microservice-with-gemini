@@ -29,43 +29,55 @@ passport.use(
       proxy: true,
     },
     async (accessToken, refreshToken, profile, done) => {
-      const { id, emails } = profile;
-      const email = emails?.[0].value;
+      console.log('[Identity] Google Auth received for profile.id:', profile.id);
+      const email = profile.emails?.[0].value;
 
-      if (!email) return done(new Error('No email found in google profile'));
-
-      // Check by socialId + socialProvider (Priority) or email (Linking)
-      // This also handles "Registration": if no user is found, we create a new one.
-      let user = await userRepository.findOne({ 
-        where: [
-          { socialId: id, socialProvider: 'google' }, 
-          { email }
-        ] 
-      });
-
-      if (!user) {
-        user = userRepository.create({ 
-          email, 
-          socialId: id,
-          socialProvider: 'google',
-          googleId: id, // Keeping for compatibility
-          password: crypto.randomBytes(20).toString('hex')
-        });
-        await userRepository.save(user);
-        
-        await RabbitMQService.publish('user-created', {
-          userId: user.id,
-          email: user.email,
-          role: user.role,
-        });
-      } else if (!user.socialId) {
-        user.socialId = id;
-        user.socialProvider = 'google';
-        user.googleId = id;
-        await userRepository.save(user);
+      if (!email) {
+        console.error('[Identity] Google Error: No email found in profile');
+        return done(new Error('No email found in google profile'));
       }
 
-      return done(null, user);
+      console.log('[Identity] Google Processing user for email:', email);
+
+      try {
+        // Check by socialId + socialProvider (Priority) or email (Linking)
+        let user = await userRepository.findOne({ 
+          where: [
+            { socialId: profile.id, socialProvider: 'google' }, 
+            { email }
+          ] 
+        });
+
+        if (!user) {
+          console.log('[Identity] Google: Creating new user for', email);
+          user = userRepository.create({ 
+            email, 
+            socialId: profile.id,
+            socialProvider: 'google',
+            googleId: profile.id, 
+            password: crypto.randomBytes(20).toString('hex')
+          });
+          await userRepository.save(user);
+          
+          await RabbitMQService.publish('user-created', {
+            userId: user.id,
+            email: user.email,
+            role: user.role,
+          });
+        } else if (user.socialProvider !== 'google' || user.socialId !== profile.id) {
+          console.log('[Identity] Google: Linking existing user to Google profile');
+          user.socialId = profile.id;
+          user.socialProvider = 'google';
+          user.googleId = profile.id;
+          await userRepository.save(user);
+        }
+
+        console.log('[Identity] Google Login Successful for:', email);
+        return done(null, user);
+      } catch (err: any) {
+        console.error('[Identity] Google Database Error:', err.message);
+        return done(err);
+      }
     }
   )
 );
@@ -155,6 +167,10 @@ passport.deserializeUser(async (id: number, done) => {
 // OAuth Routes
 router.get(
   '/api/users/auth/google',
+  (req, res, next) => {
+    console.log('[Identity] Starting Google Auth flow');
+    next();
+  },
   passport.authenticate('google', { scope: ['profile', 'email'], session: false })
 );
 
@@ -163,6 +179,7 @@ router.get(
   passport.authenticate('google', { failureRedirect: '/login', session: false }),
   (req, res) => {
     const user = req.user as User;
+    console.log('[Identity] Google Auth Callback for:', user.email);
     const userJwt = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_KEY!

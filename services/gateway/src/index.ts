@@ -62,8 +62,26 @@ const services = [
 ];
 
 // Health Check Endpoint
-app.get('/api/system/status', async (req, res) => {
-  const healthStatus = await Promise.all(
+app.get('/api/system/status', (req: any, res) => {
+  if (!req.session?.jwt) {
+    return res.status(401).send({ message: 'Unauthorized' });
+  }
+
+  try {
+    const payload = jwt.verify(
+      req.session.jwt,
+      process.env.JWT_KEY || 'asdf'
+    ) as any;
+
+    const allowedRoles = ['admin', 'auditor', 'finance'];
+    if (!allowedRoles.includes(payload.role)) {
+      return res.status(403).send({ message: 'Forbidden' });
+    }
+  } catch (err) {
+    return res.status(401).send({ message: 'Unauthorized' });
+  }
+
+  Promise.all(
     services.map(async (service) => {
       try {
         const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
@@ -75,9 +93,9 @@ app.get('/api/system/status', async (req, res) => {
         return { name: service.path.split('/').pop() || 'notifications', status: 'offline', target: service.target };
       }
     })
-  );
-
-  res.send(healthStatus);
+  ).then(healthStatus => {
+    res.send(healthStatus);
+  });
 });
 
 services.forEach((service) => {
@@ -88,6 +106,8 @@ services.forEach((service) => {
       xfwd: true, // Ensure X-Forwarded headers are sent
       pathFilter: service.path,
       ws: (service as any).ws || false,
+      proxyTimeout: 10000, // Increase timeout to 10s for auth flows/reloads
+      timeout: 10000,
       onProxyReq: (proxyReq, req: any) => {
         if (req.session?.jwt) {
           try {
@@ -106,8 +126,8 @@ services.forEach((service) => {
         }
       },
       onError: (err, req, res) => {
-        console.error(`[Gateway] Proxy Error: ${err.message}`);
-        res.status(500).send(`Error occurred while trying to proxy: ${req.url}. Reason: ${err.message}`);
+        console.error(`[Gateway] Proxy Error on ${req.url}: ${err.message}`);
+        res.status(500).send(`Error occurred while trying to proxy: ${req.url}. Reason: ${err.message}. Please try again in a few seconds.`);
       },
     })
   );
