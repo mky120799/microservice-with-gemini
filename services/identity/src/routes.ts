@@ -181,7 +181,7 @@ router.get(
     const user = req.user as User;
     console.log('[Identity] Google Auth Callback for:', user.email);
     const userJwt = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role, isTwoFactorEnabled: user.isTwoFactorEnabled },
       process.env.JWT_KEY!
     );
     req.session = { jwt: userJwt };
@@ -265,7 +265,7 @@ router.get(
     const user = req.user as User;
     console.log('[Identity] Auth0 Route Callback for:', user.email);
     const userJwt = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role, isTwoFactorEnabled: user.isTwoFactorEnabled },
       process.env.JWT_KEY!
     );
     req.session = { jwt: userJwt };
@@ -278,7 +278,7 @@ router.get(
 router.get('/api/users/auth/facebook', passport.authenticate('facebook', { scope: 'email,public_profile', session: false }));
 router.get('/api/users/auth/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/login', session: false }), (req, res) => {
   const user = req.user as User;
-  const userJwt = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_KEY!);
+  const userJwt = jwt.sign({ id: user.id, email: user.email, role: user.role, isTwoFactorEnabled: user.isTwoFactorEnabled }, process.env.JWT_KEY!);
   req.session = { jwt: userJwt };
   res.redirect('http://localhost:5173/dashboard');
 });
@@ -287,7 +287,7 @@ router.get('/api/users/auth/facebook/callback', passport.authenticate('facebook'
 router.get('/api/users/auth/twitter', passport.authenticate('twitter', { session: false }));
 router.get('/api/users/auth/twitter/callback', passport.authenticate('twitter', { failureRedirect: '/login', session: false }), (req, res) => {
   const user = req.user as User;
-  const userJwt = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_KEY!);
+  const userJwt = jwt.sign({ id: user.id, email: user.email, role: user.role, isTwoFactorEnabled: user.isTwoFactorEnabled }, process.env.JWT_KEY!);
   req.session = { jwt: userJwt };
   res.redirect('http://localhost:5173/dashboard');
 });
@@ -327,6 +327,7 @@ router.post(
         id: user.id,
         email: user.email,
         role: user.role,
+        isTwoFactorEnabled: user.isTwoFactorEnabled,
         name: user.name,
         avatarUrl: user.avatarUrl,
       },
@@ -382,6 +383,7 @@ router.post(
         id: existingUser.id,
         email: existingUser.email,
         role: existingUser.role,
+        isTwoFactorEnabled: existingUser.isTwoFactorEnabled,
         name: existingUser.name,
         avatarUrl: existingUser.avatarUrl,
       },
@@ -425,6 +427,17 @@ router.post('/api/users/2fa/verify', requireAuth, async (req: Request, res: Resp
   res.send({ success: true, message: '2FA enabled successfully' });
 });
 
+router.post('/api/users/2fa/disable', requireAuth, async (req: Request, res: Response) => {
+  const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
+  if (!user) throw new BadRequestError('User not found');
+
+  user.isTwoFactorEnabled = false;
+  user.twoFactorSecret = null as any;
+  await userRepository.save(user);
+
+  res.send({ success: true, message: '2FA disabled successfully' });
+});
+
 router.post('/api/users/signout', (req: Request, res: Response) => {
   req.session = null;
   res.send({});
@@ -456,6 +469,7 @@ router.patch(
         id: user.id,
         email: user.email,
         role: user.role,
+        isTwoFactorEnabled: user.isTwoFactorEnabled,
         name: user.name,
         avatarUrl: user.avatarUrl,
       },

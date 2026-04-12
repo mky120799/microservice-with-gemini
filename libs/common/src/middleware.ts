@@ -6,6 +6,7 @@ interface UserPayload {
   id: number;
   email: string;
   role: string;
+  isTwoFactorEnabled: boolean;
   name?: string;
   avatarUrl?: string;
 }

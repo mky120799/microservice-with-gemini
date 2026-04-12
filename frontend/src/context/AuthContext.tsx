@@ -5,6 +5,7 @@ interface User {
   id: number;
   email: string;
   role: string;
+  isTwoFactorEnabled: boolean;
   name?: string;
   avatarUrl?: string;
 }
@@ -19,6 +20,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   setup2FA: () => Promise<{ qrCodeDataURL: string; secret: string }>;
   enable2FA: (token: string) => Promise<void>;
+  disable2FA: () => Promise<void>;
   updateProfile: (profile: { name?: string; avatarUrl?: string }) => Promise<void>;
 }
 
@@ -107,6 +109,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await api.post('/api/users/2fa/verify', { token });
   };
 
+  const disable2FA = async () => {
+    await api.post('/api/users/2fa/disable');
+  };
+
   const updateProfile = async (profileData: { name?: string; avatarUrl?: string }) => {
     const res = await api.patch('/api/users/profile', profileData);
     const updatedUser = res.data;
@@ -115,7 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, twoFactorPending, login, verify2FA, signup, logout, setup2FA, enable2FA, updateProfile }}>
+    <AuthContext.Provider value={{ user, loading, twoFactorPending, login, verify2FA, signup, logout, setup2FA, enable2FA, disable2FA, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,7 +6,7 @@ import api from '../api';
 
 export const Security: React.FC = () => {
   // 2FA state
-  const { setup2FA, enable2FA, user } = useAuth();
+  const { setup2FA, enable2FA, disable2FA, user } = useAuth();
   const [twoFAStep, setTwoFAStep] = useState<'idle' | 'qr' | 'verify' | 'done'>('idle');
   const [qrCodeDataURL, setQrCodeDataURL] = useState('');
   const [secret, setSecret] = useState('');
@@ -46,6 +46,18 @@ export const Security: React.FC = () => {
       setTwoFAStep('done');
     } catch (err: any) {
       setTwoFAError(err?.response?.data?.errors?.[0]?.message || 'Invalid token. Please try again.');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    setTwoFALoading(true);
+    try {
+      await disable2FA();
+      setTwoFAStep('idle');
+    } catch (err: any) {
+      setTwoFAError('Failed to disable 2FA.');
     } finally {
       setTwoFALoading(false);
     }
@@ -155,23 +167,47 @@ export const Security: React.FC = () => {
           </div>
 
           <AnimatePresence mode="wait">
-            {/* Idle — show Setup button */}
+            {/* Idle — show Setup or Disable button */}
             {twoFAStep === 'idle' && (
               <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
                 <div className="p-4 rounded-2xl bg-violet-500/5 border border-violet-500/10 text-center">
-                  <QrCode size={40} className="text-violet-400 mx-auto mb-3" />
-                  <p className="text-sm font-semibold text-white">Authenticator App (TOTP)</p>
-                  <p className="text-xs text-gray-400 mt-1">Works with Google Authenticator, Authy, 1Password, and more.</p>
+                  {user?.isTwoFactorEnabled ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="p-3 bg-green-500/10 rounded-full mb-2">
+                        <CheckCircle2 size={32} className="text-green-400" />
+                      </div>
+                      <p className="text-sm font-semibold text-white">2FA is Currently Enabled</p>
+                      <p className="text-xs text-gray-400 mt-1">Your account is secured with a hardware-based authenticator.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <QrCode size={40} className="text-violet-400 mx-auto mb-3" />
+                      <p className="text-sm font-semibold text-white">Authenticator App (TOTP)</p>
+                      <p className="text-xs text-gray-400 mt-1">Works with Google Authenticator, Authy, 1Password, and more.</p>
+                    </>
+                  )}
                 </div>
                 {twoFAError && <p className="text-red-400 text-xs text-center">{twoFAError}</p>}
-                <button
-                  id="setup-2fa-btn"
-                  onClick={handleSetup2FA}
-                  disabled={twoFALoading}
-                  className="w-full btn-primary py-4 rounded-2xl text-xs font-black uppercase tracking-widest disabled:opacity-50"
-                >
-                  {twoFALoading ? 'Generating…' : 'Set Up 2FA'}
-                </button>
+                
+                {user?.isTwoFactorEnabled ? (
+                  <button
+                    id="disable-2fa-btn"
+                    onClick={handleDisable2FA}
+                    disabled={twoFALoading}
+                    className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                  >
+                    {twoFALoading ? 'Disabling…' : 'Disable 2FA Protection'}
+                  </button>
+                ) : (
+                  <button
+                    id="setup-2fa-btn"
+                    onClick={handleSetup2FA}
+                    disabled={twoFALoading}
+                    className="w-full btn-primary py-4 rounded-2xl text-xs font-black uppercase tracking-widest disabled:opacity-50"
+                  >
+                    {twoFALoading ? 'Generating…' : 'Set Up 2FA'}
+                  </button>
+                )}
               </motion.div>
             )}
 
