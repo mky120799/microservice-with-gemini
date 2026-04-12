@@ -11,10 +11,25 @@ app.set('trust proxy', true);
 app.use(json());
 app.use(
   cookieSession({
+    name: 'zenith_session',
     signed: false,
-    secure: false, // In production, this should be true with HTTPS
+    secure: false, // Set to true if using HTTPS
+    httpOnly: true,
+    sameSite: 'lax',
   })
 );
+
+// Fix Passport 0.6+ compatibility with cookie-session
+app.use((req: any, res, next) => {
+  if (req.session && !req.session.regenerate) {
+    req.session.regenerate = (cb: any) => cb();
+  }
+  if (req.session && !req.session.save) {
+    req.session.save = (cb: any) => cb();
+  }
+  next();
+});
+
 app.use(passport.initialize());
 app.use(passport.session());
 

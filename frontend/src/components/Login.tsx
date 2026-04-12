@@ -51,6 +51,14 @@ export const Login: React.FC<LoginProps> = ({ onForgotPassword }) => {
     window.location.href = `${GATEWAY}/api/users/auth/auth0`;
   };
 
+  const handleFacebookLogin = () => {
+    window.location.href = `${GATEWAY}/api/users/auth/facebook`;
+  };
+
+  const handleTwitterLogin = () => {
+    window.location.href = `${GATEWAY}/api/users/auth/twitter`;
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6 relative overflow-hidden">
       <div className="mesh-bg" />
@@ -149,12 +157,35 @@ export const Login: React.FC<LoginProps> = ({ onForgotPassword }) => {
                   onClick={handleAuth0Login}
                   className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/[0.06] border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-sm font-semibold text-white"
                 >
-                  {/* Auth0 icon */}
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="12" fill="#EB5424"/>
                     <path d="M16.924 7.262H7.076L4.8 12l7.2 5.252L19.2 12l-2.276-4.738zM12 15.462L8.717 12 12 8.538 15.283 12 12 15.462z" fill="white"/>
                   </svg>
                   Auth0
+                </button>
+
+                <button
+                  id="facebook-login-btn"
+                  type="button"
+                  onClick={handleFacebookLogin}
+                  className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/[0.06] border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-sm font-semibold text-white"
+                >
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#1877F2">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                  Facebook
+                </button>
+
+                <button
+                  id="twitter-login-btn"
+                  type="button"
+                  onClick={handleTwitterLogin}
+                  className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white/[0.06] border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-sm font-semibold text-white"
+                >
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="white">
+                    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932L18.901 1.153zM17.61 20.644h2.039L6.486 3.24H4.298l13.312 17.404z"/>
+                  </svg>
+                  Twitter
                 </button>
               </div>
 

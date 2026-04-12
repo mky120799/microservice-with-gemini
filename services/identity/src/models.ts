@@ -21,6 +21,12 @@ export class User {
   isTwoFactorEnabled!: boolean;
 
   @Column({ nullable: true })
+  socialId!: string;
+
+  @Column({ nullable: true })
+  socialProvider!: string;
+
+  @Column({ nullable: true })
   googleId!: string;
 
   @Column({ nullable: true })

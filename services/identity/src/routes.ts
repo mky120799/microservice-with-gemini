@@ -12,7 +12,9 @@ import QRCode from 'qrcode';
 import { requireAuth } from 'common';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import Auth0Strategy from 'passport-auth0';
+import { Strategy as Auth0Strategy } from 'passport-auth0';
+import { Strategy as FacebookStrategy } from 'passport-facebook';
+import { Strategy as TwitterStrategy } from 'passport-twitter';
 
 const router = express.Router();
 const userRepository = AppDataSource.getRepository(User);
@@ -23,7 +25,8 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID || 'placeholder_client_id',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'placeholder_client_secret',
-      callbackURL: '/api/users/auth/google/callback',
+      callbackURL: 'http://localhost:8000/api/users/auth/google/callback',
+      proxy: true,
     },
     async (accessToken, refreshToken, profile, done) => {
       const { id, emails } = profile;
@@ -31,15 +34,22 @@ passport.use(
 
       if (!email) return done(new Error('No email found in google profile'));
 
+      // Check by socialId + socialProvider (Priority) or email (Linking)
+      // This also handles "Registration": if no user is found, we create a new one.
       let user = await userRepository.findOne({ 
-        where: [{ googleId: id }, { email }] 
+        where: [
+          { socialId: id, socialProvider: 'google' }, 
+          { email }
+        ] 
       });
 
       if (!user) {
         user = userRepository.create({ 
           email, 
-          googleId: id, 
-          password: crypto.randomBytes(20).toString('hex') // Placeholder password
+          socialId: id,
+          socialProvider: 'google',
+          googleId: id, // Keeping for compatibility
+          password: crypto.randomBytes(20).toString('hex')
         });
         await userRepository.save(user);
         
@@ -48,11 +58,82 @@ passport.use(
           email: user.email,
           role: user.role,
         });
-      } else if (!user.googleId) {
+      } else if (!user.socialId) {
+        user.socialId = id;
+        user.socialProvider = 'google';
         user.googleId = id;
         await userRepository.save(user);
       }
 
+      return done(null, user);
+    }
+  )
+);
+
+passport.use(
+  new FacebookStrategy(
+    {
+      clientID: process.env.FACEBOOK_APP_ID || 'placeholder_fb_id',
+      clientSecret: process.env.FACEBOOK_APP_SECRET || 'placeholder_fb_secret',
+      callbackURL: 'http://localhost:8000/api/users/auth/facebook/callback',
+      profileFields: ['id', 'emails', 'name', 'displayName'],
+      graphApiVersion: 'v20.0',
+      proxy: true,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      const email = profile.emails?.[0].value;
+      if (!email) return done(new Error('No email found in facebook profile'));
+
+      let user = await userRepository.findOne({ 
+        where: [{ socialId: profile.id, socialProvider: 'facebook' }, { email }] 
+      });
+
+      if (!user) {
+        user = userRepository.create({ 
+          email, socialId: profile.id, socialProvider: 'facebook',
+          password: crypto.randomBytes(20).toString('hex')
+        });
+        await userRepository.save(user);
+        await RabbitMQService.publish('user-created', { userId: user.id, email: user.email, role: user.role });
+      } else if (!user.socialId) {
+        user.socialId = profile.id;
+        user.socialProvider = 'facebook';
+        await userRepository.save(user);
+      }
+      return done(null, user);
+    }
+  )
+);
+
+passport.use(
+  new TwitterStrategy(
+    {
+      consumerKey: process.env.TWITTER_CONSUMER_KEY || 'placeholder_tw_key',
+      consumerSecret: process.env.TWITTER_CONSUMER_SECRET || 'placeholder_tw_secret',
+      callbackURL: 'http://localhost:8000/api/users/auth/twitter/callback',
+      includeEmail: true,
+      proxy: true,
+    },
+    async (token, tokenSecret, profile, done) => {
+      const email = profile.emails?.[0].value;
+      if (!email) return done(new Error('No email found in twitter profile'));
+
+      let user = await userRepository.findOne({ 
+        where: [{ socialId: profile.id, socialProvider: 'twitter' }, { email }] 
+      });
+
+      if (!user) {
+        user = userRepository.create({ 
+          email, socialId: profile.id, socialProvider: 'twitter',
+          password: crypto.randomBytes(20).toString('hex')
+        });
+        await userRepository.save(user);
+        await RabbitMQService.publish('user-created', { userId: user.id, email: user.email, role: user.role });
+      } else if (!user.socialId) {
+        user.socialId = profile.id;
+        user.socialProvider = 'twitter';
+        await userRepository.save(user);
+      }
       return done(null, user);
     }
   )
@@ -74,12 +155,12 @@ passport.deserializeUser(async (id: number, done) => {
 // OAuth Routes
 router.get(
   '/api/users/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
 );
 
 router.get(
   '/api/users/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
+  passport.authenticate('google', { failureRedirect: '/login', session: false }),
   (req, res) => {
     const user = req.user as User;
     const userJwt = jwt.sign(
@@ -98,17 +179,27 @@ passport.use(
       domain: process.env.AUTH0_DOMAIN || 'YOUR_AUTH0_DOMAIN.auth0.com',
       clientID: process.env.AUTH0_CLIENT_ID || 'placeholder_auth0_client_id',
       clientSecret: process.env.AUTH0_CLIENT_SECRET || 'placeholder_auth0_client_secret',
-      callbackURL: '/api/users/auth/auth0/callback',
+      callbackURL: 'http://localhost:8000/api/users/auth/auth0/callback',
+      proxy: true,
     },
     async (accessToken: string, refreshToken: string, extraParams: any, profile: any, done: any) => {
+      console.log('[Identity] Auth0 Callback received for profile:', profile.id);
       const email = profile.emails?.[0]?.value;
       if (!email) return done(new Error('No email found in Auth0 profile'));
 
-      let user = await userRepository.findOne({ where: { email } });
+      // Check by socialId + socialProvider or email
+      let user = await userRepository.findOne({ 
+        where: [
+          { socialId: profile.id, socialProvider: 'auth0' }, 
+          { email }
+        ] 
+      });
+
       if (!user) {
         user = userRepository.create({
           email,
-          googleId: profile.id,
+          socialId: profile.id,
+          socialProvider: 'auth0',
           password: crypto.randomBytes(20).toString('hex'),
         });
         await userRepository.save(user);
@@ -117,6 +208,10 @@ passport.use(
           email: user.email,
           role: user.role,
         });
+      } else if (!user.socialId) {
+        user.socialId = profile.id;
+        user.socialProvider = 'auth0';
+        await userRepository.save(user);
       }
       return done(null, user);
     }
@@ -126,12 +221,12 @@ passport.use(
 // Auth0 Routes
 router.get(
   '/api/users/auth/auth0',
-  passport.authenticate('auth0', { scope: 'openid email profile' })
+  passport.authenticate('auth0', { scope: 'openid email profile', session: false })
 );
 
 router.get(
   '/api/users/auth/auth0/callback',
-  passport.authenticate('auth0', { failureRedirect: '/login' }),
+  passport.authenticate('auth0', { failureRedirect: '/login', session: false }),
   (req, res) => {
     const user = req.user as User;
     const userJwt = jwt.sign(
@@ -142,6 +237,24 @@ router.get(
     res.redirect('http://localhost:5173/dashboard');
   }
 );
+
+// Facebook Routes
+router.get('/api/users/auth/facebook', passport.authenticate('facebook', { scope: 'email,public_profile', session: false }));
+router.get('/api/users/auth/facebook/callback', passport.authenticate('facebook', { failureRedirect: '/login', session: false }), (req, res) => {
+  const user = req.user as User;
+  const userJwt = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_KEY!);
+  req.session = { jwt: userJwt };
+  res.redirect('http://localhost:5173/dashboard');
+});
+
+// Twitter Routes
+router.get('/api/users/auth/twitter', passport.authenticate('twitter', { session: false }));
+router.get('/api/users/auth/twitter/callback', passport.authenticate('twitter', { failureRedirect: '/login', session: false }), (req, res) => {
+  const user = req.user as User;
+  const userJwt = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_KEY!);
+  req.session = { jwt: userJwt };
+  res.redirect('http://localhost:5173/dashboard');
+});
 
 router.post(
   '/api/users/signup',

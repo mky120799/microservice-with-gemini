@@ -14,6 +14,7 @@ import { Security } from './components/Security';
 import { Profile } from './components/Profile';
 import { Settings } from './components/Settings';
 import { Ticketing } from './components/Ticketing';
+import { SystemStatus } from './components/SystemStatus';
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
@@ -49,11 +50,11 @@ const App: React.FC = () => {
     }
 
     return (
-      <div className="flex flex-col">
+      <div className="relative min-h-screen flex flex-col">
         {isSignup ? <Signup /> : <Login onForgotPassword={() => setIsForgotPassword(true)} />}
         <button 
           onClick={() => setIsSignup(!isSignup)}
-          className="text-primary hover:text-blue-400 absolute bottom-8 left-1/2 -translate-x-1/2 underline text-sm"
+          className="text-primary hover:text-blue-400 absolute bottom-8 left-1/2 -translate-x-1/2 underline text-sm z-[100] font-semibold"
         >
           {isSignup ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
         </button>
@@ -79,6 +80,8 @@ const App: React.FC = () => {
         return <Settings />;
       case 'support':
         return <Ticketing />;
+      case 'system':
+        return <SystemStatus />;
       default:
         return <Dashboard />;
     }

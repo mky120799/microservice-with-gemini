@@ -15,8 +15,11 @@ app.use(cors({
 
 app.use(
   cookieSession({
+    name: 'zenith_session',
     signed: false,
-    secure: false, // In production, this should be true with HTTPS
+    secure: false, // Set to true if using HTTPS
+    httpOnly: true,
+    sameSite: 'lax',
   })
 );
 
@@ -58,11 +61,31 @@ const services = [
   },
 ];
 
+// Health Check Endpoint
+app.get('/api/system/status', async (req, res) => {
+  const healthStatus = await Promise.all(
+    services.map(async (service) => {
+      try {
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
+        const fetchPromise = fetch(service.target.replace('/socket.io', '')); // Socket.io needs special handling, we just ping the host
+        
+        await Promise.race([fetchPromise, timeout]);
+        return { name: service.path.split('/').pop() || 'notifications', status: 'online', target: service.target };
+      } catch (err) {
+        return { name: service.path.split('/').pop() || 'notifications', status: 'offline', target: service.target };
+      }
+    })
+  );
+
+  res.send(healthStatus);
+});
+
 services.forEach((service) => {
   app.use(
     createProxyMiddleware({
       target: service.target,
       changeOrigin: true,
+      xfwd: true, // Ensure X-Forwarded headers are sent
       pathFilter: service.path,
       ws: (service as any).ws || false,
       onProxyReq: (proxyReq, req: any) => {
@@ -78,9 +101,13 @@ services.forEach((service) => {
             proxyReq.setHeader('x-user-email', payload.email);
             console.log(`[Gateway] Injected headers for user ${payload.email}`);
           } catch (err) {
-            console.log('[Gateway] JWT verification failed');
+            console.log(`[Gateway] JWT verification failed`);
           }
         }
+      },
+      onError: (err, req, res) => {
+        console.error(`[Gateway] Proxy Error: ${err.message}`);
+        res.status(500).send(`Error occurred while trying to proxy: ${req.url}. Reason: ${err.message}`);
       },
     })
   );
