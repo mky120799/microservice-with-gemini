@@ -86,7 +86,11 @@ export class TicketingController {
           publicIdWithExt = publicIdWithExt.split('/').slice(1).join('/');
         }
 
-        // Remove extension for publicId
+        // Extract publicId, version, and extension
+        const versionMatch = ticket.attachmentUrl.match(/\/v(\d+)\//);
+        const version = versionMatch ? versionMatch[1] : undefined;
+        
+        const extension = publicIdWithExt.split('.').pop();
         const publicId = publicIdWithExt.split('.').slice(0, -1).join('.');
         const isPdf = ticket.attachmentUrl.toLowerCase().endsWith('.pdf');
 
@@ -94,9 +98,11 @@ export class TicketingController {
           ticket.attachmentUrl = cloudinary.url(publicId, {
             sign_url: true,
             secure: true,
-            resource_type: isPdf ? 'image' : 'auto' // PDF is often 'image' type in Cloudinary for display
+            resource_type: isPdf ? 'image' : 'auto',
+            format: extension,
+            version: version
           });
-          console.log(`[Ticketing] Signed URL for ${publicId}: ${ticket.attachmentUrl}`);
+          console.log(`[Ticketing] Final Signed URL for ${publicId} (v${version}): ${ticket.attachmentUrl}`);
         } catch (err) {
           console.error('[Ticketing] Signing Error:', err);
         }
