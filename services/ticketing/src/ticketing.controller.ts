@@ -14,14 +14,17 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'zenith/tickets',
-    allowed_formats: ['jpg', 'png', 'pdf', 'docx', 'txt'],
-    resource_type: 'auto',
-    access_mode: 'public',
-  } as any,
+import * as multer from 'multer';
+import { extname, join } from 'path';
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + extname(file.originalname));
+  },
 });
 
 const AUTHORIZED_STAFF_ROLES = ['admin', 'auditor', 'finance', 'employee'];
@@ -49,14 +52,24 @@ export class TicketingController {
     console.log(`--- Ticket Submission by ${req.currentUser.email} ---`);
     const { title, description, priority, category } = body;
     
-    let attachmentUrl = file ? file.path || file.secure_url || file.url : undefined;
+    let attachmentUrl = undefined;
     
-    // Normalize to absolute URL
-    if (attachmentUrl && !attachmentUrl.startsWith('http')) {
-      attachmentUrl = `http://localhost:8000/${attachmentUrl.replace(/^\//, '')}`;
+    if (file) {
+      // Primary: Local Mirror URL
+      attachmentUrl = `http://localhost:8000/api/tickets/attachments/${file.filename}`;
+      console.log(`[Ticketing] Local Mirror Path: ${attachmentUrl}`);
+
+      // Secondary: Background upload to Cloudinary (as backup)
+      cloudinary.uploader.upload(file.path, {
+        folder: 'zenith/tickets',
+        resource_type: 'auto',
+        access_mode: 'public'
+      }).then(result => {
+        console.log(`[Ticketing] Background Cloudinary backup successful: ${result.secure_url}`);
+      }).catch(err => {
+        console.error('[Ticketing] Background Cloudinary backup failed:', err);
+      });
     }
-    
-    console.log(`[Ticketing] Attachment URL: ${attachmentUrl}`);
 
     const savedTicket = await this.ticketingService.createTicket(
       req.currentUser.id,
