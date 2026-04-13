@@ -1,39 +1,72 @@
-# Zenith Banking - Microservice Architecture
+# 🏦 Zenith Banking - Advanced Microservice Architecture
 
-This is a production-level FinTech microservice project built with Node.js, Express, NestJS, and multiple database strategies.
+Zenith Banking is a state-of-the-art FinTech platform built on a robust, decoupled microservice architecture. It features high-integrity financial ledgering, real-time notifications, multi-layer security, and an automated ticketing system.
+
+---
 
 ## 🏛️ Architecture Overview
-- **API Gateway (Port 8000)**: Entry point for all services.
-- **Identity Service**: Auth & RBAC (Postgres).
-- **Ledger Service**: Core banking, double-entry bookkeeping (Postgres).
-- **Transfer Service**: P2P Payments with idempotency (Redis).
-- **Notification Service**: Real-time push notifications (MongoDB + Socket.io).
-- **Analytics Service**: Time-series transaction insights (InfluxDB).
-- **Event Bus**: RabbitMQ for asynchronous inter-service communication.
+- **API Gateway (Port 8000)**: Single entry point with CORS and rate-limiting.
+- **Identity Service**: 
+    - Full Auth & RBAC (Postgres).
+    - **🔐 Two-Factor Authentication (2FA)**: Integrated TOTP support with QR code pairing.
+- **Ticketing Service**: 
+    - Automated customer support core (NestJS + Postgres).
+    - **📂 Local Mirroring**: High-reliability attachment system with Cloudinary background backup.
+    - **🕒 Automated Tasks**: Cron-driven stale ticket detection and archiving.
+- **Ledger Service**: Core banking engine utilizing double-entry bookkeeping (Postgres).
+- **Transfer Service**: High-concurrency payments with Redis-backed idempotency.
+- **Notification Service**: MongoDB-backed real-time push system (Socket.io).
+- **Analytics Service**: Time-series transaction insights and ticketing metrics (InfluxDB).
+- **Cookie Consent**: GDPR-compliant frontend consent management system.
+
+---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 - Docker & Docker Compose
+- Node.js v22.12+ (for local frontend development)
 
 ### 🛠️ Installation & Running
 1. Clone the repository.
-2. Start the entire ecosystem:
+2. Ensure your `.env` contains valid Cloudinary and Stripe credentials.
+3. Start the entire ecosystem:
    ```bash
+   ./start-all.sh
+   # OR
    docker-compose up --build
    ```
 
-## 🧪 Testing the Flow
-1. **Signup**: `POST /api/users/signup`
-2. **Signin**: `POST /api/users/signin`
-3. **Transfer**: `POST /api/transfer` (requires an idempotency key).
-4. **Balance**: `GET /api/ledger/balance/:userId`
-5. **Real-time Notifications**: Connect to `ws://localhost:8000/socket.io` and listen for `notification-{userId}`.
+---
 
-## 🛠️ Key Technologies
-- **Node.js**: The core runtime.
-- **NestJS**: For structured domain logic (Ledger).
-- **TypeORM**: Database ORM with ACID transaction support.
-- **RabbitMQ**: Message broker for decoupled services.
-- **Redis**: For high-speed idempotency checks.
-- **Socket.io**: For real-time user updates.
+## 🏗️ Core Features & Testing
+
+### 🟢 Identity & Security
+1. **Signup/Signin**: `POST /api/users/signup` | `POST /api/users/signin`
+2. **2FA Setup**: Scan the QR code provided during the 2FA connection flow using Google Authenticator.
+
+### 🟢 Ticketing & Support
+1. **Submit Ticket**: `POST /api/tickets` (Multipart/form-data with `attachment`).
+2. **List Tickets**: `GET /api/tickets` (Returns signed Cloudinary URLs + Local Mirror links).
+3. **Analytics**: `GET /api/tickets/analytics` (Authorized Staff Only).
+
+### 🟢 Financial Operations
+1. **Transfer**: `POST /api/transfer` (Requires `x-idempotency-key` header).
+2. **Balance**: `GET /api/ledger/balance/:userId`.
+
+---
+
+## 🛡️ Reliability Features
+- **Dual-Storage Attachments**: Tickets save files to the local `uploads/` volume and mirror them to Cloudinary.
+- **Dead Letter Queues**: RabbitMQ handles retry logic for failed service-to-service messages.
+- **Audit Logging**: Every ticket status or priority change is tracked in an immutable `audit_log` table.
+
+---
+
+## 🛠️ Technology Stack
+- **NestJS & Express**: Backend frameworks.
+- **React, Vite & Tailwind**: Frontend experience.
+- **Postgres, Redis, MongoDB, InfluxDB**: Diverse polyglot persistence.
+- **RabbitMQ**: Message-driven synchronization.
+- **Cloudinary**: Media management as a secondary mirror.
+- **Stripe**: Payment processing integration.
