@@ -47,14 +47,15 @@ export class TicketingController {
     console.log(`--- Ticket Submission by ${req.currentUser.email} ---`);
     const { title, description, priority, category } = body;
     
-    let attachmentUrl = file ? file.path : undefined;
+    let attachmentUrl = file ? file.path || file.secure_url || file.url : undefined;
     
-    // Ensure attachmentUrl is absolute even if it's a local fallback path
+    // Normalize to absolute URL
     if (attachmentUrl && !attachmentUrl.startsWith('http')) {
-      // Assuming local file fallback from Multer or similar
-      attachmentUrl = `http://localhost:8000/api/tickets/attachments/${attachmentUrl.split('/').pop()}`;
+      attachmentUrl = `http://localhost:8000/${attachmentUrl.replace(/^\//, '')}`;
     }
     
+    console.log(`[Ticketing] Attachment URL: ${attachmentUrl}`);
+
     return this.ticketingService.createTicket(
       req.currentUser.id,
       title,
