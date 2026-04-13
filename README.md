@@ -1,72 +1,82 @@
 # 🏦 Zenith Banking - Advanced Microservice Architecture
 
-Zenith Banking is a state-of-the-art FinTech platform built on a robust, decoupled microservice architecture. It features high-integrity financial ledgering, real-time notifications, multi-layer security, and an automated ticketing system.
+Zenith Banking is a production-grace FinTech platform built on a decoupled microservice architecture. It features high-priority financial ledgering, multi-layer security (2FA/RBAC), and a robust automated ticketing system.
 
 ---
 
-## 🏛️ Architecture Overview
-- **API Gateway (Port 8000)**: Single entry point with CORS and rate-limiting.
-- **Identity Service**: 
-    - Full Auth & RBAC (Postgres).
-    - **🔐 Two-Factor Authentication (2FA)**: Integrated TOTP support with QR code pairing.
-- **Ticketing Service**: 
-    - Automated customer support core (NestJS + Postgres).
-    - **📂 Local Mirroring**: High-reliability attachment system with Cloudinary background backup.
-    - **🕒 Automated Tasks**: Cron-driven stale ticket detection and archiving.
-- **Ledger Service**: Core banking engine utilizing double-entry bookkeeping (Postgres).
-- **Transfer Service**: High-concurrency payments with Redis-backed idempotency.
-- **Notification Service**: MongoDB-backed real-time push system (Socket.io).
-- **Analytics Service**: Time-series transaction insights and ticketing metrics (InfluxDB).
-- **Cookie Consent**: GDPR-compliant frontend consent management system.
+## 🏛️ System Architecture
+
+### 🛰️ Service Mesh & Communication
+The platform utilizes a **Hub-and-Spoke** architecture with an **API Gateway** as the single entry point.
+- **Synchronous**: Gateway proxies requests to internal services via HTTP/REST.
+- **Asynchronous**: Inter-service events are broadcast via **RabbitMQ** (Exchange/Queue model).
+- **Service List**:
+    - **Identity (Port 3001)**: Handles Auth, OAuth2 (Google/Auth0), and TOTP 2FA.
+    - **Ledger (Port 3002)**: Core accounting engine using double-entry bookkeeping.
+    - **Transfer (Port 3003)**: Coordinates cross-account payments with Redis idempotency.
+    - **Ticketing (Port 3007)**: Manages support lifecycle with automated cron jobs and local attachment mirroring.
+    - **Notification (Port 3004)**: Real-time Socket.io & MongoDB persistence.
+    - **Analytics (Port 3005)**: Time-series transaction monitoring (InfluxDB).
 
 ---
 
-## 🚀 Getting Started
+## 🔐 Security & Identity
 
-### Prerequisites
-- Docker & Docker Compose
-- Node.js v22.12+ (for local frontend development)
-
-### 🛠️ Installation & Running
-1. Clone the repository.
-2. Ensure your `.env` contains valid Cloudinary and Stripe credentials.
-3. Start the entire ecosystem:
-   ```bash
-   ./start-all.sh
-   # OR
-   docker-compose up --build
-   ```
+### 🛡️ Multi-Layer Authentication
+- **JWT**: Stateless session management with signatures.
+- **2FA (TOTP)**: 
+    - Implementation: `otplib` generated secrets, delivered via `qrcode`.
+    - Verification: Mandatory 2FA token check on sign-in if enabled in user profile.
+- **RBAC (Role Based Access Control)**:
+    - `user`: Standard customer access.
+    - `employee`: Basic staff operations.
+    - `finance`: Transaction auditing and payroll access.
+    - `auditor`: Full read-only access to all sensitive ticketing and ledger logs.
+    - `admin`: Full system management.
 
 ---
 
-## 🏗️ Core Features & Testing
+## 🏗️ Technical Specification
 
-### 🟢 Identity & Security
-1. **Signup/Signin**: `POST /api/users/signup` | `POST /api/users/signin`
-2. **2FA Setup**: Scan the QR code provided during the 2FA connection flow using Google Authenticator.
+### 💾 Data Models & Persistence
+- **Postgres (TypeORM)**: 
+    - `User`: Handles social IDs, password hashes, and 2FA secrets.
+    - `Account` & `Transaction`: Implements ACID-compliant balance updates with **Pessimistic Write Locking**.
+    - `Ticket` & `AuditLog`: Tracks every lifecycle change and file attachment mirror.
+- **Redis**: Stores `idempotency-keys` for transfer operations (24h TTL) to prevent duplicate payments.
+- **MongoDB**: Optimized for high-frequency notification history.
 
-### 🟢 Ticketing & Support
-1. **Submit Ticket**: `POST /api/tickets` (Multipart/form-data with `attachment`).
-2. **List Tickets**: `GET /api/tickets` (Returns signed Cloudinary URLs + Local Mirror links).
-3. **Analytics**: `GET /api/tickets/analytics` (Authorized Staff Only).
-
-### 🟢 Financial Operations
-1. **Transfer**: `POST /api/transfer` (Requires `x-idempotency-key` header).
-2. **Balance**: `GET /api/ledger/balance/:userId`.
-
----
-
-## 🛡️ Reliability Features
-- **Dual-Storage Attachments**: Tickets save files to the local `uploads/` volume and mirror them to Cloudinary.
-- **Dead Letter Queues**: RabbitMQ handles retry logic for failed service-to-service messages.
-- **Audit Logging**: Every ticket status or priority change is tracked in an immutable `audit_log` table.
+### 📂 Attachment Mirroring System
+To ensure 100% availability in local development environments:
+1. **Primary**: Files are saved to local disk (`services/ticketing/uploads`).
+2. **Secondary**: Files are mirrored to Cloudinary as an asynchronous background task.
+3. **Delivery**: The system prioritizes local absolute URLs to bypass cloud 401 errors.
 
 ---
 
-## 🛠️ Technology Stack
-- **NestJS & Express**: Backend frameworks.
-- **React, Vite & Tailwind**: Frontend experience.
-- **Postgres, Redis, MongoDB, InfluxDB**: Diverse polyglot persistence.
-- **RabbitMQ**: Message-driven synchronization.
-- **Cloudinary**: Media management as a secondary mirror.
-- **Stripe**: Payment processing integration.
+## 🧪 Detailed API Reference
+
+### Identity Service
+- `POST /api/users/signup`: Create a new account.
+- `POST /api/users/signin`: Standard login or 2FA challenge.
+- `POST /api/users/2fa/setup`: Generates QR code for Authenticator pairing.
+- `PATCH /api/users/profile`: Update name and Cloudinary avatar.
+
+### Ticketing Service
+- `POST /api/tickets`: Create support ticket (supports file attachments).
+- `GET /api/tickets`: List authorized tickets (Staff see all, users see owned).
+- `GET /api/tickets/:id`: Fetch ticket + full history from `AuditLog`.
+- `PUT /api/tickets/:id/status`: Change ticket state (`OPEN`, `RESOLVED`, etc.).
+
+### Ledger & Transfer
+- `POST /api/transfer`: Initiate P2P transfer. **Required header**: `x-idempotency-key`.
+- `GET /api/ledger/balance/:userId`: Retrieve real-time account balance.
+- `GET /api/ledger/transactions`: Fetch last 10 transaction history.
+
+---
+
+## 🚀 Deployment & Scripts
+The entire ecosystem is containerized for consistency:
+- `start-all.sh`: Orchestrates Docker builds and starts the Vite frontend.
+- `docker-compose.yml`: Manages 10 interconnected containers + 4 databases.
+- **Cron Jobs**: The Ticketing service runs an hourly background worker for stale ticket detection.
