@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThan } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Ticket, TicketStatus, TicketPriority } from './entities/ticket.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { RabbitMQService } from './rabbitmq.service';
 
 @Injectable()
 export class TicketingService {
+  private readonly logger = new Logger(TicketingService.name);
+
   constructor(
     @InjectRepository(Ticket)
     private ticketRepository: Repository<Ticket>,
@@ -14,6 +17,31 @@ export class TicketingService {
     private auditLogRepository: Repository<AuditLog>,
     private rabbitMQService: RabbitMQService,
   ) {}
+
+  // Automated Task: Runs every minute to check for stale tickets
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleStaleTickets() {
+    this.logger.debug('[Ticketing Job] Checking for stale tickets (older than 24 hours)...');
+
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    const staleTickets = await this.ticketRepository.find({
+      where: {
+        status: TicketStatus.OPEN,
+        createdAt: LessThan(oneDayAgo)
+      }
+    });
+
+    if (staleTickets.length > 0) {
+      this.logger.warn(`[Ticketing Job] Found ${staleTickets.length} stale tickets that need attention!`);
+      staleTickets.forEach(ticket => {
+        this.logger.log(`[Ticketing Job] Ticket #${ticket.id} (${ticket.title}) is stale.`);
+      });
+    } else {
+      this.logger.debug('[Ticketing Job] No stale tickets found.');
+    }
+  }
 
   async createTicket(userId: number, title: string, description: string, priority: TicketPriority, category?: string, attachmentUrl?: string) {
     const ticket = this.ticketRepository.create({

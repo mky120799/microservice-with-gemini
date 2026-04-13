@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TicketingController } from './ticketing.controller';
 import { TicketingService } from './ticketing.service';
 import { Ticket } from './entities/ticket.entity';
@@ -8,6 +9,7 @@ import { RabbitMQService } from './rabbitmq.service';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
