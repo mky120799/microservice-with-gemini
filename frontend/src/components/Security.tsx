@@ -46,8 +46,11 @@ export const Security: React.FC = () => {
     try {
       await enable2FA(totpToken);
       setTwoFAStep('done');
+      setTwoFAError(''); // Clear any previous errors
     } catch (err: any) {
-      setTwoFAError(err?.response?.data?.errors?.[0]?.message || 'Invalid token. Please try again.');
+      console.error('[2FA Verify Error]', err);
+      const msg = err?.response?.data?.errors?.[0]?.message || 'Invalid token. Please check your authenticator and try again.';
+      setTwoFAError(msg);
     } finally {
       setTwoFALoading(false);
     }

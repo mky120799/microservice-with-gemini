@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, LayoutDashboard, Send, Bell, PieChart, Shield, History, User, Settings, MessageSquare, Activity } from 'lucide-react';
+import { LogOut, LayoutDashboard, Send, Bell, PieChart, Shield, History, User, Settings, MessageSquare, Activity, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../hooks/useSocket';
+import { CookieConsent } from './CookieConsent';
 
 export const Layout: React.FC<{ 
   children: React.ReactNode, 
@@ -13,7 +14,7 @@ export const Layout: React.FC<{
   const { notifications, clearNotifications } = useSocket();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const isEmployee = user?.role === 'admin' || user?.role === 'auditor' || user?.role === 'finance';
+  const isEmployee = user?.role === 'admin' || user?.role === 'auditor' || user?.role === 'finance' || user?.role === 'employee';
 
   const getRoleLabel = (role: string) => {
     switch (role) {
@@ -102,8 +103,16 @@ export const Layout: React.FC<{
                 icon={<Activity size={20} />} 
                 label="System Status" 
                 active={currentView === 'system'} 
-                onClick={() => setView('system')}
+                onClick={() => setView('system')} 
               />
+              {user?.role === 'admin' && (
+                <NavItem 
+                  icon={<Users size={20} />} 
+                  label="Users" 
+                  active={currentView === 'users'} 
+                  onClick={() => setView('users')} 
+                />
+              )}
             </>
           )}
         </nav>
@@ -289,9 +298,17 @@ export const Layout: React.FC<{
                 active={currentView === 'system'} 
                 onClick={() => setView('system')}
               />
+              {user?.role === 'admin' && (
+                <MobileNavItem 
+                  icon={<Users size={20} />} 
+                  active={currentView === 'users'} 
+                  onClick={() => setView('users')} 
+                />
+              )}
             </>
           )}
       </nav>
+      <CookieConsent />
     </div>
   );
 };

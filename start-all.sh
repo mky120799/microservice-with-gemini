@@ -28,7 +28,7 @@ fi
 
 # 1. Start Docker containers (Databases and Backend Services)
 echo "📦 Starting Backend Services (Docker)..."
-docker compose up --build -d
+docker compose up -d --build
 
 if [ $? -ne 0 ]; then
     echo "❌ Error starting Docker services. Please make sure Docker Desktop is running."

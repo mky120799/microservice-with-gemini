@@ -32,14 +32,15 @@ export const Ticketing: React.FC = () => {
   const [category, setCategory] = useState('General');
   const [attachment, setAttachment] = useState<File | null>(null);
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'finance' || user?.role === 'auditor';
+  const isStaff = user?.role === 'admin' || user?.role === 'finance' || user?.role === 'auditor' || user?.role === 'employee';
 
   const fetchTickets = async () => {
     try {
       const res = await api.get('/api/tickets', {
         headers: {
           'x-user-id': user?.id,
-          'x-user-role': user?.role
+          'x-user-role': user?.role,
+          'x-user-email': user?.email
         }
       });
       setTickets(res.data);
@@ -50,7 +51,13 @@ export const Ticketing: React.FC = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const res = await api.get('/api/tickets/analytics');
+      const res = await api.get('/api/tickets/analytics', {
+        headers: {
+          'x-user-id': user?.id,
+          'x-user-role': user?.role,
+          'x-user-email': user?.email
+        }
+      });
       setAnalytics(res.data);
     } catch (err) {
       console.error('Failed to fetch analytics');
@@ -59,7 +66,13 @@ export const Ticketing: React.FC = () => {
 
   const fetchTicketDetails = async (id: number) => {
     try {
-      const res = await api.get(`/api/tickets/${id}`);
+      const res = await api.get(`/api/tickets/${id}`, {
+        headers: {
+          'x-user-id': user?.id,
+          'x-user-role': user?.role,
+          'x-user-email': user?.email
+        }
+      });
       setSelectedTicket(res.data);
     } catch (err) {
       console.error('Failed to fetch ticket details');
@@ -68,7 +81,7 @@ export const Ticketing: React.FC = () => {
 
   useEffect(() => {
     fetchTickets();
-    if (isAdmin) fetchAnalytics();
+    if (isStaff) fetchAnalytics();
   }, [user]);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
@@ -85,6 +98,8 @@ export const Ticketing: React.FC = () => {
       await api.post('/api/tickets', formData, {
         headers: {
           'x-user-id': user?.id,
+          'x-user-role': user?.role,
+          'x-user-email': user?.email
           // Removed manual Content-Type as it blocks Axios boundary generation
         }
       });
@@ -109,7 +124,11 @@ export const Ticketing: React.FC = () => {
   const handleUpdateStatus = async (id: number, status: string) => {
     try {
       await api.put(`/api/tickets/${id}/status`, { status }, {
-        headers: { 'x-user-id': user?.id }
+        headers: { 
+          'x-user-id': user?.id,
+          'x-user-role': user?.role,
+          'x-user-email': user?.email
+        }
       });
       fetchTickets();
       if (selectedTicket?.id === id) fetchTicketDetails(id);
@@ -129,17 +148,19 @@ export const Ticketing: React.FC = () => {
           </h1>
           <p className="text-gray-500 font-medium mt-1">Support & Internal Resolution System</p>
         </div>
-        <button 
-          onClick={() => setIsCreateOpen(true)}
-          className="btn-primary px-8 py-4 rounded-2xl flex items-center gap-3 font-bold tracking-tight"
-        >
-          <Plus size={20} strokeWidth={3} />
-          Report New Issue
-        </button>
+        {user?.role !== 'user' && (
+          <button 
+            onClick={() => setIsCreateOpen(true)}
+            className="btn-primary px-8 py-4 rounded-2xl flex items-center gap-3 font-bold tracking-tight"
+          >
+            <Plus size={20} strokeWidth={3} />
+            Report New Issue
+          </button>
+        )}
       </div>
 
-      {/* Analytics (Admin Only) */}
-      {isAdmin && analytics && (
+      {/* Analytics (Staff Only) */}
+      {isStaff && analytics && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             { label: 'Total Tickets', value: analytics.totalTickets, icon: MessageSquare, color: 'text-blue-400' },
@@ -272,7 +293,7 @@ export const Ticketing: React.FC = () => {
                     <div className="flex items-center justify-between mb-4">
                        <h3 className="text-xl font-bold">Issue Overview</h3>
                        <div className="flex gap-3">
-                          {isAdmin && (
+                          {isStaff && (
                             <div className="flex gap-2">
                                <button 
                                  onClick={() => handleUpdateStatus(selectedTicket.id, 'IN_PROGRESS')}
@@ -309,8 +330,9 @@ export const Ticketing: React.FC = () => {
                           <div className="mt-8">
                              <p className="text-[10px] font-black text-gray-500 uppercase mb-4">Evidence Attachment</p>
                              <a 
-                                href={selectedTicket.attachmentUrl} 
+                                href={selectedTicket.attachmentUrl.startsWith('http') ? selectedTicket.attachmentUrl : `http://localhost:8000${selectedTicket.attachmentUrl.startsWith('/') ? '' : '/'}${selectedTicket.attachmentUrl}`} 
                                 target="_blank" 
+                                rel="noopener noreferrer"
                                 className="flex items-center gap-4 p-4 bg-primary/5 border border-primary/10 rounded-2xl group hover:bg-primary/10 transition-all"
                              >
                                 <div className="p-3 bg-primary/20 rounded-xl text-primary">

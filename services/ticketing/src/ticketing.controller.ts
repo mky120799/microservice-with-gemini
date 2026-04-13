@@ -22,6 +22,8 @@ const storage = new CloudinaryStorage({
   } as any,
 });
 
+const AUTHORIZED_STAFF_ROLES = ['admin', 'auditor', 'finance', 'employee'];
+
 @Controller('api/tickets')
 export class TicketingController {
   constructor(private readonly ticketingService: TicketingService) {}
@@ -37,8 +39,21 @@ export class TicketingController {
       throw new NotAuthorizedError();
     }
 
+    // RBAC: Customers can no longer create tickets per new requirement
+    if (req.currentUser.role === 'user') {
+      throw new ForbiddenError();
+    }
+
     console.log(`--- Ticket Submission by ${req.currentUser.email} ---`);
     const { title, description, priority, category } = body;
+    
+    let attachmentUrl = file ? file.path : undefined;
+    
+    // Ensure attachmentUrl is absolute even if it's a local fallback path
+    if (attachmentUrl && !attachmentUrl.startsWith('http')) {
+      // Assuming local file fallback from Multer or similar
+      attachmentUrl = `http://localhost:8000/api/tickets/attachments/${attachmentUrl.split('/').pop()}`;
+    }
     
     return this.ticketingService.createTicket(
       req.currentUser.id,
@@ -46,7 +61,7 @@ export class TicketingController {
       description,
       priority as TicketPriority,
       category,
-      file ? file.path : undefined
+      attachmentUrl
     );
   }
 
@@ -60,7 +75,7 @@ export class TicketingController {
 
   @Get('analytics')
   async getAnalytics(@Req() req: Request) {
-    if (!req.currentUser || (req.currentUser.role !== 'admin' && req.currentUser.role !== 'auditor')) {
+    if (!req.currentUser || !AUTHORIZED_STAFF_ROLES.includes(req.currentUser.role)) {
       throw new ForbiddenError();
     }
     return this.ticketingService.getAnalytics();
@@ -73,7 +88,7 @@ export class TicketingController {
     }
     const ticket = await this.ticketingService.getTicketById(parseInt(id));
     
-    // RBAC: Customers can only see their own tickets
+    // RBAC: Customers can only see their own tickets, Staff can see all
     if (req.currentUser.role === 'user' && ticket.userId !== req.currentUser.id) {
       throw new ForbiddenError();
     }
@@ -87,8 +102,8 @@ export class TicketingController {
       throw new NotAuthorizedError();
     }
 
-    // RBAC: Only admin or employee can change status
-    if (req.currentUser.role === 'user') {
+    // RBAC: Only authorized staff can change status
+    if (!AUTHORIZED_STAFF_ROLES.includes(req.currentUser.role)) {
       throw new ForbiddenError();
     }
 
@@ -101,8 +116,8 @@ export class TicketingController {
       throw new NotAuthorizedError();
     }
 
-    // RBAC: Only admin or employee can change priority
-    if (req.currentUser.role === 'user') {
+    // RBAC: Only authorized staff can change priority
+    if (!AUTHORIZED_STAFF_ROLES.includes(req.currentUser.role)) {
       throw new ForbiddenError();
     }
 

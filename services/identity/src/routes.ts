@@ -7,9 +7,9 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { AppDataSource } from './database';
 import { RabbitMQService } from './rabbitmq.service';
-import { authenticator } from 'otplib';
+const { authenticator } = require('otplib');
 import QRCode from 'qrcode';
-import { requireAuth } from 'common';
+import { requireAuth, requireRole } from 'common';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as Auth0Strategy } from 'passport-auth0';
@@ -382,7 +382,8 @@ router.post(
         });
       }
 
-      const isValid = authenticator.check(token, existingUser.twoFactorSecret);
+      const { verify } = require('otplib');
+      const isValid = verify({ token, secret: existingUser.twoFactorSecret });
       if (!isValid) {
         throw new BadRequestError('Invalid 2FA token');
       }
@@ -412,19 +413,22 @@ router.post(
 
 router.post('/api/users/2fa/setup', requireAuth, async (req: Request, res: Response) => {
   try {
-    console.log(`[Identity] Starting 2FA setup for user: ${req.currentUser!.email}`);
     const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
     if (!user) {
-      console.error('[Identity] 2FA Setup: User not found in database');
       throw new BadRequestError('User not found');
     }
 
-    const secret = authenticator.generateSecret();
+    const { generateSecret, generateURI } = require('otplib');
+    const secret = generateSecret();
     user.twoFactorSecret = secret;
     await userRepository.save(user);
 
     console.log(`[Identity] Generated secret for ${user.email}, creating QR Code...`);
-    const otpauth = authenticator.keyuri(user.email, 'Zenith Bank', secret);
+    const otpauth = generateURI({ 
+      secret, 
+      account: user.email, 
+      issuer: 'Zenith Bank' 
+    });
     const qrCodeDataURL = await QRCode.toDataURL(otpauth);
 
     console.log(`[Identity] 2FA QR Code generated successfully for ${user.email}`);
@@ -440,13 +444,31 @@ router.post('/api/users/2fa/verify', requireAuth, async (req: Request, res: Resp
   const user = await userRepository.findOne({ where: { id: req.currentUser!.id } });
   if (!user || !user.twoFactorSecret) throw new BadRequestError('2FA not set up');
 
-  const isValid = authenticator.check(token, user.twoFactorSecret);
+  const { verify } = require('otplib');
+  const isValid = verify({ token, secret: user.twoFactorSecret });
   if (!isValid) throw new BadRequestError('Invalid token');
 
   user.isTwoFactorEnabled = true;
   await userRepository.save(user);
 
-  res.send({ success: true, message: '2FA enabled successfully' });
+  // Resign JWT to include new 2FA status
+  const userJwt = jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isTwoFactorEnabled: user.isTwoFactorEnabled,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+    },
+    process.env.JWT_KEY!
+  );
+
+  req.session = {
+    jwt: userJwt,
+  };
+
+  res.send(user);
 });
 
 router.post('/api/users/2fa/disable', requireAuth, async (req: Request, res: Response) => {
@@ -457,7 +479,24 @@ router.post('/api/users/2fa/disable', requireAuth, async (req: Request, res: Res
   user.twoFactorSecret = null as any;
   await userRepository.save(user);
 
-  res.send({ success: true, message: '2FA disabled successfully' });
+  // Resign JWT
+  const userJwt = jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isTwoFactorEnabled: user.isTwoFactorEnabled,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+    },
+    process.env.JWT_KEY!
+  );
+
+  req.session = {
+    jwt: userJwt,
+  };
+
+  res.send(user);
 });
 
 router.post('/api/users/signout', (req: Request, res: Response) => {
@@ -633,5 +672,56 @@ router.post(
     res.status(200).send({ message: 'Password has been successfully reset' });
   }
 );
+
+// --- User Management (Admin Only) ---
+
+router.get('/api/users', requireAuth, requireRole(['admin']), async (req: Request, res: Response) => {
+  const users = await userRepository.find({
+    order: { id: 'ASC' }
+  });
+  
+  // Return sanitized users
+  const sanitizedUsers = users.map(u => ({
+    id: u.id,
+    email: u.email,
+    role: u.role,
+    name: u.name,
+    avatarUrl: u.avatarUrl,
+    createdAt: u.createdAt
+  }));
+
+  res.send(sanitizedUsers);
+});
+
+router.patch('/api/users/:id/role', requireAuth, requireRole(['admin']), async (req: Request, res: Response) => {
+  const { role } = req.body;
+  const { id } = req.params;
+
+  const validRoles = ['admin', 'user', 'auditor', 'finance', 'employee'];
+  if (!validRoles.includes(role)) {
+    throw new BadRequestError('Invalid role specified');
+  }
+
+  const user = await userRepository.findOne({ where: { id: parseInt(id) } });
+  if (!user) {
+    return res.status(404).send({ message: 'User not found' });
+  }
+
+  user.role = role;
+  await userRepository.save(user);
+
+  // Publish user-updated event so other services can sync if needed
+  await RabbitMQService.publish('user-updated', {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+  });
+
+  res.send({ 
+    id: user.id, 
+    email: user.email, 
+    role: user.role 
+  });
+});
 
 export { router as authRouter };

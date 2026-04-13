@@ -107,11 +107,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const enable2FA = async (token: string) => {
-    await api.post('/api/users/2fa/verify', { token });
+    const res = await api.post('/api/users/2fa/verify', { token });
+    const updatedUser = res.data;
+    setUser(updatedUser);
+    localStorage.setItem('zenith_user', JSON.stringify(updatedUser));
   };
 
   const disable2FA = async () => {
-    await api.post('/api/users/2fa/disable');
+    const res = await api.post('/api/users/2fa/disable');
+    const updatedUser = res.data;
+    setUser(updatedUser);
+    localStorage.setItem('zenith_user', JSON.stringify(updatedUser));
   };
 
   const uploadAvatar = async (file: File) => {

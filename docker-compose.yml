@@ -65,6 +65,11 @@ services:
     depends_on:
       - postgres
       - rabbitmq
+    volumes:
+      - ./services/identity:/app/services/identity
+      - ./libs/common:/app/libs/common
+      - /app/services/identity/node_modules
+      - /app/libs/common/node_modules
 
   ledger-service:
     build:
@@ -168,6 +173,10 @@ services:
     ports:
       - "3007:3007"
     volumes:
+      - ./services/ticketing:/app/services/ticketing
+      - ./libs/common:/app/libs/common
+      - /app/services/ticketing/node_modules
+      - /app/libs/common/node_modules
       - ticketing_uploads:/app/services/ticketing/uploads
     environment:
       - DB_HOST=postgres
@@ -197,7 +206,7 @@ services:
       - NOTIFICATION_SERVICE_URL=http://notification-service:3004
       - ANALYTICS_SERVICE_URL=http://analytics-service:3005
       - PAYMENT_SERVICE_URL=http://payment-service:3006
-      - TICKETING_SERVICE_URL=http://ticketing-service:3007
+      - TICKETING_SERVICE_URL=http://host.docker.internal:3007
       - JWT_KEY=asdf
     depends_on:
       - identity-service

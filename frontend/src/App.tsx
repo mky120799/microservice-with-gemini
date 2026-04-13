@@ -15,6 +15,7 @@ import { Profile } from './components/Profile';
 import { Settings } from './components/Settings';
 import { Ticketing } from './components/Ticketing';
 import { SystemStatus } from './components/SystemStatus';
+import { UserManagement } from './components/UserManagement';
 
 const App: React.FC = () => {
   const { user, loading } = useAuth();
@@ -82,6 +83,8 @@ const App: React.FC = () => {
         return <Ticketing />;
       case 'system':
         return <SystemStatus />;
+      case 'users':
+        return <UserManagement />;
       default:
         return <Dashboard />;
     }
