@@ -5,66 +5,66 @@ Copy the following block into a Notion "Code" block (set to Mermaid) to render t
 ```mermaid
 graph TD
     subgraph "Frontend Layer"
-        UI["React Web Application (Vite)"]
+        UI["React Web Application"]
     end
 
     subgraph "API Gateway Layer"
-        GW["Express API Gateway (Port 8000)"]
+        GW["API Gateway (Port 8000)"]
     end
 
-    subgraph "Event Bus"
-        RMQ{{"RabbitMQ (Message Broker)"}}
+    subgraph "Messaging"
+        RMQ{{"RabbitMQ Event Bus"}}
     end
 
-    subgraph "Microservices"
-        ID["Identity Service<br/>(Auth/2FA/RBAC)"]
-        TC["Ticketing Service<br/>(Support/Cron/Mirror)"]
-        LD["Ledger Service<br/>(Core Banking)"]
-        TR["Transfer Service<br/>(P2P Payments)"]
-        NT["Notification Service<br/>(Socket.io/Push)"]
-        AN["Analytics Service<br/>(Insights)"]
+    subgraph "Ticketing Service"
+        TC["Ticketing Logic Core"]
+        CRON[["⏰ Cron Worker: Stale Ticket Detection"]]
+        TC --- CRON
     end
 
-    subgraph "Persistence Layer"
-        DB_ID[("Postgres<br/>Identity DB")]
-        DB_TC[("Postgres<br/>Ticketing DB")]
-        DB_LD[("Postgres<br/>Ledger DB")]
-        REDIS[("Redis Cache<br/>Idempotency")]
-        DB_NT[("MongoDB<br/>Notifications")]
-        DB_AN[("InfluxDB<br/>Time-Series")]
-        LOCAL[("Local Disk<br/>Attachment Mirror")]
-        CLOUD[("Cloudinary<br/>Cloud Backup")]
+    subgraph "Financial Services"
+        LD["Ledger Service"]
+        TR["Transfer Service"]
+    end
+
+    subgraph "Support Services"
+        ID["Identity Service"]
+        NT["Notification Service"]
+        AN["Analytics Service"]
+    end
+
+    subgraph "Data & Storage"
+        DB_PG[("Postgres DBs")]
+        REDIS[("Redis Cache")]
+        DB_NOSQL[("MongoDB / InfluxDB")]
+        MIRROR[("📂 Local Mirror Folder")]
+        CLOUD[("☁️ Cloudinary backup")]
     end
 
     %% Routing
-    UI -->|REST| GW
-    GW -->|Proxy| ID
-    GW -->|Proxy| TC
-    GW -->|Proxy| TR
-    GW -->|Proxy| LD
-    GW -->|Socket.io| NT
+    UI --> GW
+    GW --> ID
+    GW --> TC
+    GW --> TR
+    GW --> NT
 
-    %% ID Logic
-    ID --- DB_ID
-
-    %% TC Logic
-    TC --- DB_TC
-    TC --- LOCAL
+    %% Connections
+    TC --- DB_PG
+    TC --- MIRROR
     TC --- CLOUD
-
-    %% Financial Logic
+    
     TR --- REDIS
-    TR -->|Sync Call| LD
-    LD --- DB_LD
+    TR --> LD
+    LD --- DB_PG
 
-    %% Data Processing
-    NT --- DB_NT
-    AN --- DB_AN
+    %% Automation flow
+    CRON -.->|Auto-archive| DB_PG
+    CRON -.->|Notify Staff| NT
 
-    %% Event Bus Connections
-    ID -.->|User Created| RMQ
-    LD -.->|Tx Completed| RMQ
-    TC -.->|Audit Logs| RMQ
-    RMQ -.->|Notify| NT
-    RMQ -.->|Process| AN
+    %% Event Bus
+    ID -.-> RMQ
+    LD -.-> RMQ
+    TC -.-> RMQ
+    RMQ -.-> NT
+    RMQ -.-> AN
 ```
