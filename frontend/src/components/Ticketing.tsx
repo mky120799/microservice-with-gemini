@@ -234,18 +234,25 @@ export const Ticketing: React.FC = () => {
                      {ticket.description}
                    </p>
                    
-                   <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                      <div className="flex items-center gap-2">
-                         <div className={`w-2 h-2 rounded-full ${
-                           ticket.status === 'RESOLVED' ? 'bg-green-500' :
-                           ticket.status === 'IN_PROGRESS' ? 'bg-amber-500' : 'bg-blue-500'
-                         }`} />
-                         <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{ticket.status}</span>
-                      </div>
-                      <div className="text-[10px] font-bold text-gray-600 uppercase">
-                         {new Date(ticket.createdAt).toLocaleDateString()}
-                      </div>
-                   </div>
+                    <div className="flex items-center justify-between pt-6 border-t border-white/5">
+                       <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                             <div className={`w-2 h-2 rounded-full ${
+                               ticket.status === 'RESOLVED' ? 'bg-green-500' :
+                               ticket.status === 'IN_PROGRESS' ? 'bg-amber-500' : 'bg-blue-500'
+                             }`} />
+                             <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{ticket.status}</span>
+                          </div>
+                          {ticket.attachmentUrl && (
+                             <div className="p-1.5 bg-white/5 rounded-lg text-gray-500" title="Has attachment">
+                                <Paperclip size={12} />
+                             </div>
+                          )}
+                       </div>
+                       <div className="text-[10px] font-bold text-gray-600 uppercase">
+                          {new Date(ticket.createdAt).toLocaleDateString()}
+                       </div>
+                    </div>
                  </div>
                </motion.div>
             ))}
@@ -329,8 +336,21 @@ export const Ticketing: React.FC = () => {
                        {selectedTicket.attachmentUrl && (
                           <div className="mt-8">
                              <p className="text-[10px] font-black text-gray-500 uppercase mb-4">Evidence Attachment</p>
+                             
+                             {/* Image Preview */}
+                             {/\.(jpg|jpeg|png|gif|webp)$/i.test(selectedTicket.attachmentUrl) && (
+                                <div className="mb-4 rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                                   <img 
+                                      src={selectedTicket.attachmentUrl} 
+                                      alt="Attachment Preview" 
+                                      className="w-full h-auto max-h-[300px] object-contain"
+                                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                                   />
+                                </div>
+                             )}
+
                              <a 
-                                href={selectedTicket.attachmentUrl.startsWith('http') ? selectedTicket.attachmentUrl : `http://localhost:8000${selectedTicket.attachmentUrl.startsWith('/') ? '' : '/'}${selectedTicket.attachmentUrl}`} 
+                                href={selectedTicket.attachmentUrl} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-4 p-4 bg-primary/5 border border-primary/10 rounded-2xl group hover:bg-primary/10 transition-all"
@@ -338,7 +358,9 @@ export const Ticketing: React.FC = () => {
                                 <div className="p-3 bg-primary/20 rounded-xl text-primary">
                                    <Paperclip size={20} />
                                 </div>
-                                <span className="text-sm font-bold text-primary group-hover:underline">View Attached Document</span>
+                                <span className="text-sm font-bold text-primary group-hover:underline font-outfit">
+                                   View Full Document
+                                </span>
                              </a>
                           </div>
                        )}
