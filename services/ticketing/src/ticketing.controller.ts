@@ -19,6 +19,8 @@ const storage = new CloudinaryStorage({
   params: {
     folder: 'zenith/tickets',
     allowed_formats: ['jpg', 'png', 'pdf', 'docx', 'txt'],
+    resource_type: 'auto',
+    access_mode: 'public',
   } as any,
 });
 
