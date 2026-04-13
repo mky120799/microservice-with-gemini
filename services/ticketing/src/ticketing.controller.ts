@@ -58,7 +58,7 @@ export class TicketingController {
     
     console.log(`[Ticketing] Attachment URL: ${attachmentUrl}`);
 
-    return this.ticketingService.createTicket(
+    const savedTicket = await this.ticketingService.createTicket(
       req.currentUser.id,
       title,
       description,
@@ -66,14 +66,53 @@ export class TicketingController {
       category,
       attachmentUrl
     );
+
+    return this.signTicket(savedTicket);
   }
+
+  private signTicket(ticket: any) {
+    if (ticket.attachmentUrl && ticket.attachmentUrl.includes('cloudinary.com')) {
+      // Regex to extract public_id from Cloudinary URL
+      // Handles: https://res.cloudinary.com/cloud_name/image/upload/v123456/folder/public_id.ext
+      const parts = ticket.attachmentUrl.split('/');
+      const uploadIdx = parts.indexOf('upload');
+      if (uploadIdx !== -1) {
+        // public_id is everything after the version (vXXXX) or after /upload/
+        // Actually, cloudinary.url just needs the path after /upload/v12345/ or /upload/
+        let publicIdWithExt = parts.slice(uploadIdx + 1).join('/');
+        
+        // Remove version if present (v123456)
+        if (publicIdWithExt.startsWith('v')) {
+          publicIdWithExt = publicIdWithExt.split('/').slice(1).join('/');
+        }
+
+        // Remove extension for publicId
+        const publicId = publicIdWithExt.split('.').slice(0, -1).join('.');
+        const isPdf = ticket.attachmentUrl.toLowerCase().endsWith('.pdf');
+
+        try {
+          ticket.attachmentUrl = cloudinary.url(publicId, {
+            sign_url: true,
+            secure: true,
+            resource_type: isPdf ? 'image' : 'auto' // PDF is often 'image' type in Cloudinary for display
+          });
+          console.log(`[Ticketing] Signed URL for ${publicId}: ${ticket.attachmentUrl}`);
+        } catch (err) {
+          console.error('[Ticketing] Signing Error:', err);
+        }
+      }
+    }
+    return ticket;
+  }
+
 
   @Get()
   async getTickets(@Req() req: Request) {
     if (!req.currentUser) {
       throw new NotAuthorizedError();
     }
-    return this.ticketingService.getTickets(req.currentUser.id, req.currentUser.role);
+    const tickets = await this.ticketingService.getTickets(req.currentUser.id, req.currentUser.role);
+    return tickets.map(t => this.signTicket(t));
   }
 
   @Get('analytics')
@@ -96,7 +135,7 @@ export class TicketingController {
       throw new ForbiddenError();
     }
 
-    return ticket;
+    return this.signTicket(ticket);
   }
 
   @Put(':id/status')
